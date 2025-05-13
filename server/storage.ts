@@ -49,6 +49,8 @@ export interface IStorage {
   listProducts(tenantId: number, limit?: number): Promise<Product[]>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, tenantId: number, productData: Partial<Product>): Promise<Product | undefined>;
+  updateProductStockLevel(id: number, tenantId: number, stockLevel: string): Promise<Product | undefined>;
+  getProductsByStockLevel(tenantId: number, stockLevel: string): Promise<Product[]>;
 
   // Order methods
   getOrder(id: number, tenantId: number): Promise<Order | undefined>;
@@ -266,6 +268,20 @@ export class MemStorage implements IStorage {
     const updatedProduct = { ...product, ...productData, updatedAt: new Date() };
     this.products.set(id, updatedProduct);
     return updatedProduct;
+  }
+
+  async updateProductStockLevel(id: number, tenantId: number, stockLevel: string): Promise<Product | undefined> {
+    const product = await this.getProduct(id, tenantId);
+    if (!product) return undefined;
+
+    const updatedProduct = { ...product, stockLevel, updatedAt: new Date() };
+    this.products.set(id, updatedProduct);
+    return updatedProduct;
+  }
+
+  async getProductsByStockLevel(tenantId: number, stockLevel: string): Promise<Product[]> {
+    return Array.from(this.products.values())
+      .filter((product) => product.tenantId === tenantId && product.stockLevel === stockLevel);
   }
 
   // Order methods

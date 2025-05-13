@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
 } from "@/components/ui/card";
 import {
   Table,
@@ -22,10 +22,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { 
-  DownloadCloud, 
-  ChevronDown, 
-  Search 
+import {
+  DownloadCloud,
+  ChevronDown,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,73 +35,23 @@ export default function Sales() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Fetch sales data
-  const { data, isLoading } = useQuery({
+  const { data: salesData, isLoading } = useQuery({
     queryKey: ['/api/sales', page, pageSize, searchQuery],
     staleTime: 60 * 1000, // 1 minute
   });
-  
+
   // Revenue gauge data
-  const revenueData = {
-    current: 24825,
+  const revenueData = salesData?.revenue || {
+    current: 0,
     target: 30000,
-    percentage: 82.75,
+    percentage: 0,
   };
-  
-  // Sample orders data
-  const orders = [
-    {
-      id: "ORD-5789",
-      customer: "Sarah Thompson",
-      amount: 109.95,
-      date: new Date(2023, 5, 15),
-      status: "Paid",
-    },
-    {
-      id: "ORD-5788",
-      customer: "David Williams",
-      amount: 245.30,
-      date: new Date(2023, 5, 14),
-      status: "Paid",
-    },
-    {
-      id: "ORD-5787",
-      customer: "Michael Johnson",
-      amount: 89.99,
-      date: new Date(2023, 5, 13),
-      status: "Processing",
-    },
-    {
-      id: "ORD-5786",
-      customer: "Jessica Brown",
-      amount: 129.50,
-      date: new Date(2023, 5, 12),
-      status: "Shipped",
-    },
-    {
-      id: "ORD-5785",
-      customer: "Robert Davis",
-      amount: 195.75,
-      date: new Date(2023, 5, 11),
-      status: "Delivered",
-    },
-    {
-      id: "ORD-5784",
-      customer: "Jennifer Wilson",
-      amount: 42.99,
-      date: new Date(2023, 5, 10),
-      status: "Paid",
-    },
-    {
-      id: "ORD-5783",
-      customer: "William Taylor",
-      amount: 57.25,
-      date: new Date(2023, 5, 9),
-      status: "Refunded",
-    },
-  ];
-  
+
+  // Use real orders data from API
+  const orders = salesData?.orders || [];
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "paid":
@@ -118,7 +68,7 @@ export default function Sales() {
         return "bg-gray-100 text-gray-800";
     }
   };
-  
+
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -133,7 +83,7 @@ export default function Sales() {
           </Button>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
         <div className="lg:col-span-3">
           <Card>
@@ -167,47 +117,68 @@ export default function Sales() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.id}</TableCell>
-                      <TableCell>{order.customer}</TableCell>
-                      <TableCell>${order.amount.toFixed(2)}</TableCell>
-                      <TableCell>{order.date.toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant="outline" 
-                          className={getStatusColor(order.status)}
-                        >
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">
-                          View
-                        </Button>
-                      </TableCell>
+                  {isOrdersLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">Loading orders...</TableCell>
                     </TableRow>
-                  ))}
+                  ) : orders.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">No orders found</TableCell>
+                    </TableRow>
+                  ) : (
+                    orders.map((order) => (
+                      <TableRow key={order._id || order.id}>
+                        <TableCell className="font-medium">{order.orderNumber || order.id}</TableCell>
+                        <TableCell>{order.customerName || order.customer}</TableCell>
+                        <TableCell>${Number(order.amount).toFixed(2)}</TableCell>
+                        <TableCell>{new Date(order.createdAt || order.date).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={getStatusColor(order.status)}
+                          >
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm">
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
-              
+
               <div className="mt-4">
                 <Pagination>
                   <PaginationContent>
                     <PaginationItem>
-                      <PaginationPrevious href="#" />
+                      <PaginationPrevious
+                        onClick={() => page > 1 && setPage(page - 1)}
+                        className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
                     </PaginationItem>
+
+                    {/* Generate page numbers */}
+                    {salesData?.pagination && Array.from({ length: Math.ceil(salesData.pagination.total / pageSize) || 1 }).map((_, i) => (
+                      <PaginationItem key={i}>
+                        <PaginationLink
+                          onClick={() => setPage(i + 1)}
+                          isActive={page === i + 1}
+                          className="cursor-pointer"
+                        >
+                          {i + 1}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
                     <PaginationItem>
-                      <PaginationLink href="#" isActive>1</PaginationLink>
-                    </PaginationItem>
-                    <PaginationItem>
-                      <PaginationLink href="#">2</PaginationLink>
-                    </PaginationItem>
-                    <PaginationItem>
-                      <PaginationLink href="#">3</PaginationLink>
-                    </PaginationItem>
-                    <PaginationItem>
-                      <PaginationNext href="#" />
+                      <PaginationNext
+                        onClick={() => salesData?.pagination && page < Math.ceil(salesData.pagination.total / pageSize) && setPage(page + 1)}
+                        className={salesData?.pagination && page >= Math.ceil(salesData.pagination.total / pageSize) ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
                     </PaginationItem>
                   </PaginationContent>
                 </Pagination>
@@ -215,7 +186,7 @@ export default function Sales() {
             </CardContent>
           </Card>
         </div>
-        
+
         <div>
           <Card>
             <CardHeader>
@@ -223,41 +194,49 @@ export default function Sales() {
             </CardHeader>
             <CardContent className="flex flex-col items-center">
               <div className="relative h-36 w-36">
-                <svg className="w-full h-full" viewBox="0 0 100 100">
-                  {/* Background circle */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="transparent"
-                    stroke="#e6e6e6"
-                    strokeWidth="12"
-                  />
-                  {/* Progress circle */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="transparent"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth="12"
-                    strokeDasharray={`${revenueData.percentage * 2.51} 251`}
-                    strokeLinecap="round"
-                    transform="rotate(-90 50 50)"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-gray-900">
-                    {Math.round(revenueData.percentage)}%
-                  </span>
-                </div>
+                {isLoading ? (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <>
+                    <svg className="w-full h-full" viewBox="0 0 100 100">
+                      {/* Background circle */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="transparent"
+                        stroke="#e6e6e6"
+                        strokeWidth="12"
+                      />
+                      {/* Progress circle */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="transparent"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth="12"
+                        strokeDasharray={`${revenueData.percentage * 2.51} 251`}
+                        strokeLinecap="round"
+                        transform="rotate(-90 50 50)"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold text-gray-900">
+                        {Math.round(revenueData.percentage)}%
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
-              
+
               <div className="mt-6 text-center">
                 <div className="text-sm text-gray-500">Current</div>
                 <div className="text-xl font-bold text-gray-900">${revenueData.current.toLocaleString()}</div>
               </div>
-              
+
               <div className="mt-4 text-center">
                 <div className="text-sm text-gray-500">Target</div>
                 <div className="text-xl font-bold text-gray-900">${revenueData.target.toLocaleString()}</div>

@@ -1,22 +1,75 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { getStorage } from "./storageFactory";
 import { z } from "zod";
-import { createInsertSchema } from "drizzle-zod";
-import {
-  insertUserSchema,
-  insertTenantSchema,
-  insertProductSchema,
-  insertOrderSchema,
-  insertLeadSchema,
-  leadStatusEnum,
-  orderStatusEnum,
-} from "@shared/schema";
+import { IStorage } from "./types";
 import * as bcrypt from "bcryptjs";
+import { OrderStatus, LeadStatus } from "./types";
 
-// Create a type for order status and lead status to be used in the APIs
-export type OrderStatus = typeof orderStatusEnum.enumValues[number];
-export type LeadStatus = typeof leadStatusEnum.enumValues[number];
+// We'll need to define these schemas for validation
+const insertUserSchema = z.object({
+  email: z.string().email(),
+  name: z.string(),
+  passwordHash: z.string(),
+  role: z.enum(["admin", "editor", "viewer"]),
+  isActive: z.boolean().optional(),
+  tenantId: z.number().optional(),
+});
+
+const insertTenantSchema = z.object({
+  name: z.string(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  website: z.string().optional(),
+  logoUrl: z.string().optional(),
+  primaryColor: z.string().optional(),
+});
+
+const insertProductSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  price: z.number().positive(),
+  category: z.string().optional(),
+  imageUrl: z.string().optional(),
+  stockLevel: z.enum(["none", "low", "good", "high"]).optional(),
+  isActive: z.boolean().optional(),
+  tenantId: z.number().optional(),
+});
+
+const insertOrderSchema = z.object({
+  orderNumber: z.string(),
+  customerName: z.string(),
+  customerEmail: z.string().email().optional(),
+  amount: z.number().positive(),
+  status: z.enum(["pending", "paid", "processing", "shipped", "delivered", "refunded", "canceled"]).optional(),
+  tenantId: z.number().optional(),
+});
+
+const insertLeadSchema = z.object({
+  name: z.string(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  company: z.string().optional(),
+  source: z.string().optional(),
+  status: z.enum(["new", "contacted", "won", "lost"]).optional(),
+  value: z.number().optional(),
+  notes: z.string().optional(),
+  tenantId: z.number().optional(),
+});
+
+// Define enum values for validation
+const orderStatusEnum = {
+  enumValues: ["pending", "paid", "processing", "shipped", "delivered", "refunded", "canceled"]
+};
+
+const leadStatusEnum = {
+  enumValues: ["new", "contacted", "won", "lost"]
+};
+
+const stockLevelEnum = {
+  enumValues: ["none", "low", "good", "high"]
+};
 
 // Authentication middleware
 const authenticated = (req: Request, res: Response, next: Function) => {
@@ -27,7 +80,7 @@ const authenticated = (req: Request, res: Response, next: Function) => {
 };
 
 // Ensure tenant access middleware
-const ensureTenantAccess = async (req: Request, res: Response, next: Function) => {
+const ensureTenantAccess = (storage: IStorage) => async (req: Request, res: Response, next: Function) => {
   if (!req.session || !req.session.userId) {
     return res.status(401).json({ message: "Unauthorized" });
   }
@@ -49,34 +102,36 @@ const ensureTenantAccess = async (req: Request, res: Response, next: Function) =
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Get storage implementation
+  const storage = await getStorage();
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
-      
+
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
       }
-      
+
       const user = await storage.getUserByEmail(email);
       if (!user) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
-      
+
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
-      
+
       // Set user session
       req.session.userId = user.id;
-      
+
       // Get tenant info
       const tenant = await storage.getTenant(user.tenantId);
-      
+
       // Return user info (excluding sensitive data)
       const { passwordHash, ...userWithoutPassword } = user;
-      res.json({ 
+      res.json({
         user: userWithoutPassword,
         tenant
       });
@@ -101,13 +156,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       // Get tenant info
       const tenant = await storage.getTenant(user.tenantId);
-      
+
       // Return user info (excluding sensitive data)
       const { passwordHash, ...userWithoutPassword } = user;
-      res.json({ 
+      res.json({
         user: userWithoutPassword,
         tenant
       });
@@ -118,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User routes
-  app.get("/api/users", ensureTenantAccess, async (req, res) => {
+  app.get("/api/users", ensureTenantAccess(storage), async (req, res) => {
     try {
       const users = await storage.listUsers(req.tenantId);
       // Remove passwordHash from users
@@ -137,23 +192,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Validate request body
       const validatedData = insertUserSchema.parse(req.body);
-      
+
       // Check if email already exists
       const existingUser = await storage.getUserByEmail(validatedData.email);
       if (existingUser) {
         return res.status(400).json({ message: "Email already in use" });
       }
-      
+
       // Hash password
       const passwordHash = await bcrypt.hash(validatedData.passwordHash, 10);
-      
+
       // Create user with hashed password
       const newUser = await storage.createUser({
         ...validatedData,
         passwordHash,
         tenantId: req.tenantId,
       });
-      
+
       // Remove passwordHash from response
       const { passwordHash: _, ...userWithoutPassword } = newUser;
       res.status(201).json(userWithoutPassword);
@@ -186,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tenant) {
         return res.status(404).json({ message: "Tenant not found" });
       }
-      
+
       // Update only allowed fields
       const allowedFields = ["name", "email", "phone", "address", "website", "logoUrl", "primaryColor"];
       const updateData = Object.keys(req.body)
@@ -195,7 +250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           obj[key] = req.body[key];
           return obj;
         }, {});
-      
+
       const updatedTenant = await storage.updateTenant(req.tenantId, updateData);
       res.json(updatedTenant);
     } catch (error) {
@@ -211,13 +266,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tenant) {
         return res.status(404).json({ message: "Tenant not found" });
       }
-      
+
       const { stripeSecretKey, ga4Key } = req.body;
-      
+
       const updateData: { stripeSecretKey?: string, ga4Key?: string } = {};
       if (stripeSecretKey) updateData.stripeSecretKey = stripeSecretKey;
       if (ga4Key) updateData.ga4Key = ga4Key;
-      
+
       const updatedTenant = await storage.updateTenant(req.tenantId, updateData);
       res.json({ message: "API keys updated successfully" });
     } catch (error) {
@@ -231,24 +286,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fromDate = req.query.from ? new Date(req.query.from as string) : undefined;
       const toDate = req.query.to ? new Date(req.query.to as string) : undefined;
-      
+
       // Get KPI data
       const revenue = await storage.calculateRevenue(req.tenantId, fromDate, toDate);
       const orderCount = await storage.countOrders(req.tenantId, fromDate, toDate);
       const averageOrderValue = await storage.calculateAverageOrderValue(req.tenantId, fromDate, toDate);
       const leadCount = await storage.countLeads(req.tenantId, fromDate, toDate);
-      
+
       // Get traffic data
       const trafficBySource = await storage.getTrafficBySource(req.tenantId);
       const topPages = await storage.getTopPages(req.tenantId);
       const deviceDistribution = await storage.getDeviceDistribution(req.tenantId);
-      
+
       // Get recent activity
       const recentActivity = await storage.getRecentActivity(req.tenantId);
-      
+
       // Get popular products
       const popularProducts = await storage.listProducts(req.tenantId, 5);
-      
+
       res.json({
         kpi: {
           revenue,
@@ -275,11 +330,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const page = req.query.page ? parseInt(req.query.page as string) : 1;
       const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 10;
-      
+      const searchQuery = req.query.search as string;
+
       const orders = await storage.listOrders(req.tenantId, page, pageSize);
-      res.json(orders);
+
+      // Filter orders by search query if provided
+      const filteredOrders = searchQuery
+        ? orders.filter(order =>
+            order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            order.status.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : orders;
+
+      res.json(filteredOrders);
     } catch (error) {
       console.error("Error listing orders:", error);
+      res.status(500).json({ message: "An error occurred" });
+    }
+  });
+
+  // Sales API endpoint
+  app.get("/api/sales", ensureTenantAccess, async (req, res) => {
+    try {
+      const page = req.query.page ? parseInt(req.query.page as string) : 1;
+      const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 10;
+      const searchQuery = req.query.search as string;
+
+      // Get orders for sales data
+      const orders = await storage.listOrders(req.tenantId, page, pageSize);
+
+      // Filter orders by search query if provided
+      const filteredOrders = searchQuery
+        ? orders.filter(order =>
+            order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            order.status.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : orders;
+
+      // Get revenue data
+      const revenue = await storage.calculateRevenue(req.tenantId);
+      const target = 30000; // This could be fetched from settings
+
+      res.json({
+        orders: filteredOrders,
+        revenue: {
+          current: revenue,
+          target,
+          percentage: (revenue / target) * 100
+        },
+        pagination: {
+          page,
+          pageSize,
+          total: await storage.countOrders(req.tenantId)
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching sales data:", error);
       res.status(500).json({ message: "An error occurred" });
     }
   });
@@ -291,19 +399,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         tenantId: req.tenantId,
       });
-      
+
       // Validate order items
       const orderItemsSchema = z.array(z.object({
         productId: z.number(),
         quantity: z.number().min(1),
         price: z.number().min(0),
       }));
-      
+
       const validatedItems = orderItemsSchema.parse(req.body.items);
-      
+
       // Create order
       const newOrder = await storage.createOrder(validatedOrder, validatedItems);
-      
+
       // Log activity
       await storage.logActivity({
         tenantId: req.tenantId,
@@ -314,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: newOrder.id,
         metadata: { orderId: newOrder.id, amount: newOrder.amount },
       });
-      
+
       res.status(201).json(newOrder);
     } catch (error) {
       console.error("Error creating order:", error);
@@ -329,21 +437,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orderId = parseInt(req.params.id);
       const { status } = req.body;
-      
+
       if (!orderId || !status) {
         return res.status(400).json({ message: "Order ID and status are required" });
       }
-      
+
       // Validate status
       if (!orderStatusEnum.enumValues.includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
+
       const updatedOrder = await storage.updateOrderStatus(orderId, req.tenantId, status);
       if (!updatedOrder) {
         return res.status(404).json({ message: "Order not found" });
       }
-      
+
       // Log activity
       await storage.logActivity({
         tenantId: req.tenantId,
@@ -354,7 +462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: updatedOrder.id,
         metadata: { orderId: updatedOrder.id, status },
       });
-      
+
       res.json(updatedOrder);
     } catch (error) {
       console.error("Error updating order status:", error);
@@ -380,10 +488,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         tenantId: req.tenantId,
       });
-      
+
       // Create lead
       const newLead = await storage.createLead(validatedLead);
-      
+
       // Log activity
       await storage.logActivity({
         tenantId: req.tenantId,
@@ -394,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: newLead.id,
         metadata: { leadId: newLead.id, source: newLead.source },
       });
-      
+
       res.status(201).json(newLead);
     } catch (error) {
       console.error("Error creating lead:", error);
@@ -409,21 +517,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const leadId = parseInt(req.params.id);
       const { status } = req.body;
-      
+
       if (!leadId || !status) {
         return res.status(400).json({ message: "Lead ID and status are required" });
       }
-      
+
       // Validate status
       if (!leadStatusEnum.enumValues.includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
+
       const updatedLead = await storage.updateLeadStatus(leadId, req.tenantId, status);
       if (!updatedLead) {
         return res.status(404).json({ message: "Lead not found" });
       }
-      
+
       // Log activity
       await storage.logActivity({
         tenantId: req.tenantId,
@@ -434,7 +542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: updatedLead.id,
         metadata: { leadId: updatedLead.id, status },
       });
-      
+
       res.json(updatedLead);
     } catch (error) {
       console.error("Error updating lead status:", error);
@@ -473,21 +581,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "An error occurred" });
     }
   });
-  
+
   // Vercel Analytics API route
   app.get("/api/vercel-analytics", ensureTenantAccess, async (req, res) => {
     try {
       const { from, to, projectId, teamId } = req.query;
-      
+
       // Import the Vercel analytics service
       const { fetchVercelAnalytics } = await import('./services/vercel-analytics');
-      
+
       // Get tenant for API keys
       const tenant = await storage.getTenant(req.tenantId);
       if (!tenant) {
         return res.status(404).json({ message: "Tenant not found" });
       }
-      
+
       // Fetch analytics data from Vercel
       const analyticsData = await fetchVercelAnalytics({
         projectId: projectId as string || tenant.vercelProjectId as string,
@@ -495,11 +603,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         from: from ? new Date(from as string) : undefined,
         to: to ? new Date(to as string) : undefined
       });
-      
+
       res.json(analyticsData);
     } catch (error) {
       console.error("Error fetching Vercel analytics:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Error fetching analytics data",
         error: error.message
       });
@@ -525,10 +633,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         tenantId: req.tenantId,
       });
-      
+
       // Create product
       const newProduct = await storage.createProduct(validatedProduct);
-      
+
       // Log activity
       await storage.logActivity({
         tenantId: req.tenantId,
@@ -539,13 +647,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityId: newProduct.id,
         metadata: { productId: newProduct.id, price: newProduct.price },
       });
-      
+
       res.status(201).json(newProduct);
     } catch (error) {
       console.error("Error creating product:", error);
       if (error.name === "ZodError") {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
+      res.status(500).json({ message: "An error occurred" });
+    }
+  });
+
+  // Stock level routes
+  app.get("/api/products/stock-levels", ensureTenantAccess, async (req, res) => {
+    try {
+      // Return all available stock level options
+      res.json(stockLevelEnum.enumValues);
+    } catch (error) {
+      console.error("Error fetching stock levels:", error);
+      res.status(500).json({ message: "An error occurred" });
+    }
+  });
+
+  app.get("/api/products/by-stock-level/:stockLevel", ensureTenantAccess, async (req, res) => {
+    try {
+      const { stockLevel } = req.params;
+
+      // Validate stock level is valid
+      if (!stockLevelEnum.enumValues.includes(stockLevel as StockLevel)) {
+        return res.status(400).json({ message: "Invalid stock level" });
+      }
+
+      const products = await storage.getProductsByStockLevel(req.tenantId, stockLevel);
+      res.json(products);
+    } catch (error) {
+      console.error("Error listing products by stock level:", error);
+      res.status(500).json({ message: "An error occurred" });
+    }
+  });
+
+  app.patch("/api/products/:id/stock-level", ensureTenantAccess, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { stockLevel } = req.body;
+
+      // Validate stock level is valid
+      if (!stockLevelEnum.enumValues.includes(stockLevel as StockLevel)) {
+        return res.status(400).json({ message: "Invalid stock level" });
+      }
+
+      const product = await storage.updateProductStockLevel(id, req.tenantId, stockLevel);
+
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      // Log this activity
+      await storage.logActivity({
+        tenantId: req.tenantId,
+        userId: req.user.id,
+        activityType: "product_update",
+        description: `Updated stock level of product "${product.name}" to ${stockLevel}`,
+        entityType: "product",
+        entityId: id,
+        metadata: { previous: product.stockLevel, new: stockLevel }
+      });
+
+      res.json(product);
+    } catch (error) {
+      console.error("Error updating product stock level:", error);
       res.status(500).json({ message: "An error occurred" });
     }
   });

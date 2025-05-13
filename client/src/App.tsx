@@ -8,7 +8,8 @@ import DashboardLayout from "@/layouts/dashboard-layout";
 import Dashboard from "@/pages/dashboard";
 import Sales from "@/pages/sales";
 import Traffic from "@/pages/traffic";
-import Leads from "@/pages/leads";
+import Customers from "@/pages/customers";
+import Products from "@/pages/Products";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import { AuthProvider } from "@/context/auth-context";
@@ -26,41 +27,47 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 function Router() {
   // Track page views when routes change
   useAnalytics();
-  
+
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      
+
       <Route path="/">
         <DashboardLayout>
           <Dashboard />
         </DashboardLayout>
       </Route>
-      
+
       <Route path="/sales">
         <DashboardLayout>
           <Sales />
         </DashboardLayout>
       </Route>
-      
+
       <Route path="/traffic">
         <DashboardLayout>
           <Traffic />
         </DashboardLayout>
       </Route>
-      
-      <Route path="/leads">
+
+      <Route path="/customers">
         <DashboardLayout>
-          <Leads />
+          <Customers />
         </DashboardLayout>
       </Route>
-      
+
+      <Route path="/products">
+        <DashboardLayout>
+          <Products />
+        </DashboardLayout>
+      </Route>
+
       <Route path="/settings">
         <DashboardLayout>
           <Settings />
         </DashboardLayout>
       </Route>
-      
+
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
@@ -72,7 +79,7 @@ function App() {
   useEffect(() => {
     // Initialize Vercel Analytics
     initVercelAnalytics();
-    
+
     // Initialize Google Analytics if measurement ID is present
     if (import.meta.env.VITE_GA_MEASUREMENT_ID) {
       initGA();

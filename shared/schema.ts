@@ -6,6 +6,7 @@ import { z } from "zod";
 export const userRoleEnum = pgEnum('user_role', ['admin', 'editor', 'viewer']);
 export const leadStatusEnum = pgEnum('lead_status', ['new', 'contacted', 'won', 'lost']);
 export const orderStatusEnum = pgEnum('order_status', ['pending', 'paid', 'processing', 'shipped', 'delivered', 'refunded', 'canceled']);
+export const stockLevelEnum = pgEnum('stock_level', ['none', 'low', 'good', 'high']);
 
 // Tables
 export const tenants = pgTable('tenants', {
@@ -49,6 +50,7 @@ export const products = pgTable('products', {
   price: decimal('price', { precision: 10, scale: 2 }).notNull(),
   category: text('category'),
   imageUrl: text('image_url'),
+  stockLevel: stockLevelEnum('stock_level').default('good'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   isActive: boolean('is_active').default(true),

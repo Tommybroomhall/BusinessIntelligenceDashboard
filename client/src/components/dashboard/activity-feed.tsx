@@ -1,9 +1,9 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, UserPlus, Cog } from "lucide-react";
+import { ShoppingCart, Cog } from "lucide-react";
 
-type ActivityType = "order" | "lead" | "system";
+type ActivityType = "order" | "system";
 
 interface Activity {
   id: string;
@@ -33,12 +33,6 @@ export function ActivityFeed({
         return (
           <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center ring-8 ring-white">
             <ShoppingCart className="h-5 w-5 text-purple-600" />
-          </div>
-        );
-      case "lead":
-        return (
-          <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center ring-8 ring-white">
-            <UserPlus className="h-5 w-5 text-green-600" />
           </div>
         );
       case "system":
@@ -94,7 +88,6 @@ export function ActivityFeed({
           <SelectContent>
             <SelectItem value="all">All Activities</SelectItem>
             <SelectItem value="order">Orders</SelectItem>
-            <SelectItem value="lead">Leads</SelectItem>
             <SelectItem value="system">System</SelectItem>
           </SelectContent>
         </Select>

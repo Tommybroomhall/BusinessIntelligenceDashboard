@@ -7,7 +7,6 @@ import {
   Users, 
   Package, 
   LineChart, 
-  Megaphone, 
   User, 
   Settings, 
   LogOut
@@ -103,9 +102,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
           </SidebarLink>
           <SidebarLink href="/traffic" icon={<LineChart size={18} />}>
             Traffic
-          </SidebarLink>
-          <SidebarLink href="/leads" icon={<Megaphone size={18} />}>
-            Leads
           </SidebarLink>
         </ul>
       </div>

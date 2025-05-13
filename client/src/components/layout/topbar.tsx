@@ -25,8 +25,6 @@ export function Topbar({ onMenuToggle, dateRange, onDateRangeChange }: TopbarPro
         return "Sales";
       case "/traffic":
         return "Traffic";
-      case "/leads":
-        return "Leads";
       case "/settings":
         return "Settings";
       default:
