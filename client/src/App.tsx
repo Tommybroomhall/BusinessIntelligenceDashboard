@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,18 +10,32 @@ import Sales from "@/pages/sales";
 import Traffic from "@/pages/traffic";
 import Customers from "@/pages/customers";
 import Products from "@/pages/Products";
+import Updates from "@/pages/updates";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
-import { AuthProvider } from "@/context/auth-context";
+import { AuthProvider, useAuth } from "@/context/auth-context";
 import { TenantProvider } from "@/context/tenant-context";
 import { useEffect } from "react";
 import { initVercelAnalytics, initGA } from "./lib/analytics";
 import { useAnalytics } from "./hooks/use-analytics";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  // This is a simplified version - in a real app, we'd check auth state
-  // and redirect if not authenticated
-  return <Component />;
+  const { isAuthenticated, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      // Redirect to login if not authenticated
+      navigate('/login');
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  // Show loading or the component
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  return isAuthenticated ? <Component /> : null;
 }
 
 function Router() {
@@ -34,37 +48,43 @@ function Router() {
 
       <Route path="/">
         <DashboardLayout>
-          <Dashboard />
+          <ProtectedRoute component={Dashboard} />
         </DashboardLayout>
       </Route>
 
       <Route path="/sales">
         <DashboardLayout>
-          <Sales />
+          <ProtectedRoute component={Sales} />
         </DashboardLayout>
       </Route>
 
       <Route path="/traffic">
         <DashboardLayout>
-          <Traffic />
+          <ProtectedRoute component={Traffic} />
         </DashboardLayout>
       </Route>
 
       <Route path="/customers">
         <DashboardLayout>
-          <Customers />
+          <ProtectedRoute component={Customers} />
         </DashboardLayout>
       </Route>
 
       <Route path="/products">
         <DashboardLayout>
-          <Products />
+          <ProtectedRoute component={Products} />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/updates">
+        <DashboardLayout>
+          <ProtectedRoute component={Updates} />
         </DashboardLayout>
       </Route>
 
       <Route path="/settings">
         <DashboardLayout>
-          <Settings />
+          <ProtectedRoute component={Settings} />
         </DashboardLayout>
       </Route>
 

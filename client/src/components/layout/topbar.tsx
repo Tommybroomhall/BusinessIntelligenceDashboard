@@ -1,18 +1,14 @@
 import { useState } from "react";
-import { Calendar, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/context/auth-context";
 
 interface TopbarProps {
   onMenuToggle: () => void;
-  dateRange: { from: Date | undefined; to: Date | undefined };
-  onDateRangeChange: (range: { from: Date | undefined; to: Date | undefined }) => void;
 }
 
-export function Topbar({ onMenuToggle, dateRange, onDateRangeChange }: TopbarProps) {
+export function Topbar({ onMenuToggle }: TopbarProps) {
   const [location] = useLocation();
   const { user } = useAuth();
   
@@ -30,26 +26,6 @@ export function Topbar({ onMenuToggle, dateRange, onDateRangeChange }: TopbarPro
       default:
         return "Dashboard";
     }
-  };
-  
-  // Format the date range for display
-  const formatDateRange = () => {
-    if (!dateRange.from) return "Select date range";
-    
-    const fromDate = dateRange.from.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    });
-    
-    const toDate = dateRange.to 
-      ? dateRange.to.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric',
-          year: 'numeric'
-        })
-      : fromDate;
-    
-    return `${fromDate} - ${toDate}`;
   };
   
   return (
@@ -81,13 +57,7 @@ export function Topbar({ onMenuToggle, dateRange, onDateRangeChange }: TopbarPro
         <h1 className="text-xl font-semibold text-gray-900">{getPageTitle()}</h1>
       </div>
       
-      <div className="mt-4 md:mt-0 flex items-center space-x-3">
-        {/* Date Range Picker */}
-        <DateRangePicker
-          dateRange={dateRange}
-          onDateRangeChange={onDateRangeChange}
-        />
-        
+      <div className="mt-4 md:mt-0 flex items-center">
         {/* User Profile */}
         <div className="relative">
           <div className="flex items-center space-x-2">

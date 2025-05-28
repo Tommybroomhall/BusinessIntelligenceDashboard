@@ -1,82 +1,74 @@
 import {
-  users, 
-  tenants, 
-  products, 
-  orders,
-  orderItems,
-  leads,
-  trafficData,
-  activityLogs,
-  type User, 
-  type InsertUser,
+  type User,
   type Tenant,
-  type InsertTenant,
   type Product,
-  type InsertProduct,
   type Order,
-  type InsertOrder,
   type OrderItem,
-  type InsertOrderItem,
   type Lead,
-  type InsertLead,
   type TrafficData,
-  type InsertTrafficData,
   type ActivityLog,
-  type InsertActivityLog,
-} from "@shared/schema";
-import { eq, and, gte, lte, like, desc, between, sql } from "drizzle-orm";
-import { type LeadStatus, type OrderStatus } from "./types";
+  type LeadStatus,
+  type OrderStatus,
+  type StockLevel
+} from "@shared/types";
 import * as bcrypt from "bcryptjs";
 
 // Interface definitions
 export interface IStorage {
   // User methods
-  getUser(id: number): Promise<User | undefined>;
+  getUser(id: string | number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, userData: Partial<User>): Promise<User | undefined>;
-  listUsers(tenantId: number): Promise<User[]>;
+  createUser(user: Omit<User, 'id' | '_id' | 'createdAt' | 'updatedAt'>): Promise<User>;
+  updateUser(id: string | number, userData: Partial<User>): Promise<User | undefined>;
+  listUsers(tenantId: string | number): Promise<User[]>;
 
   // Tenant methods
-  getTenant(id: number): Promise<Tenant | undefined>;
-  createTenant(tenant: InsertTenant): Promise<Tenant>;
-  updateTenant(id: number, tenantData: Partial<Tenant>): Promise<Tenant | undefined>;
-  updateStripeCustomerId(userId: number, customerId: string): Promise<User>;
-  updateUserStripeInfo(userId: number, stripeInfo: { customerId: string, subscriptionId: string }): Promise<User>;
+  getTenant(id: string | number): Promise<Tenant | undefined>;
+  createTenant(tenant: Omit<Tenant, 'id' | '_id' | 'createdAt' | 'updatedAt'>): Promise<Tenant>;
+  updateTenant(id: string | number, tenantData: Partial<Tenant>): Promise<Tenant | undefined>;
+  updateStripeCustomerId(userId: string | number, customerId: string): Promise<User>;
+  updateUserStripeInfo(userId: string | number, stripeInfo: { customerId: string, subscriptionId: string }): Promise<User>;
+  listTenants(): Promise<Tenant[]>;
 
   // Product methods
-  getProduct(id: number, tenantId: number): Promise<Product | undefined>;
-  listProducts(tenantId: number, limit?: number): Promise<Product[]>;
-  createProduct(product: InsertProduct): Promise<Product>;
-  updateProduct(id: number, tenantId: number, productData: Partial<Product>): Promise<Product | undefined>;
-  updateProductStockLevel(id: number, tenantId: number, stockLevel: string): Promise<Product | undefined>;
-  getProductsByStockLevel(tenantId: number, stockLevel: string): Promise<Product[]>;
+  getProduct(id: string | number, tenantId: string | number): Promise<Product | undefined>;
+  listProducts(tenantId: string | number, limit?: number): Promise<Product[]>;
+  createProduct(product: Omit<Product, 'id' | '_id' | 'createdAt' | 'updatedAt'>): Promise<Product>;
+  updateProduct(id: string | number, tenantId: string | number, productData: Partial<Product>): Promise<Product | undefined>;
+  updateProductStockLevel(id: string | number, tenantId: string | number, stockLevel: StockLevel): Promise<Product | undefined>;
+  getProductsByStockLevel(tenantId: string | number, stockLevel: StockLevel): Promise<Product[]>;
 
   // Order methods
-  getOrder(id: number, tenantId: number): Promise<Order | undefined>;
-  listOrders(tenantId: number, page?: number, pageSize?: number): Promise<Order[]>;
-  countOrders(tenantId: number, fromDate?: Date, toDate?: Date): Promise<number>;
-  createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order>;
-  updateOrderStatus(id: number, tenantId: number, status: OrderStatus): Promise<Order | undefined>;
-  calculateRevenue(tenantId: number, fromDate?: Date, toDate?: Date): Promise<number>;
-  calculateAverageOrderValue(tenantId: number, fromDate?: Date, toDate?: Date): Promise<number>;
+  getOrder(id: string | number, tenantId: string | number): Promise<Order | undefined>;
+  listOrders(tenantId: string | number, page?: number, pageSize?: number): Promise<Order[]>;
+  countOrders(tenantId: string | number, fromDate?: Date, toDate?: Date): Promise<number>;
+  createOrder(order: Omit<Order, 'id' | '_id' | 'createdAt' | 'updatedAt'>, items: Omit<OrderItem, 'id' | '_id'>[]): Promise<Order>;
+  updateOrderStatus(id: string | number, tenantId: string | number, status: OrderStatus): Promise<Order | undefined>;
+  calculateRevenue(tenantId: string | number, fromDate?: Date, toDate?: Date): Promise<number>;
+  calculateAverageOrderValue(tenantId: string | number, fromDate?: Date, toDate?: Date): Promise<number>;
 
   // Lead methods
-  getLead(id: number, tenantId: number): Promise<Lead | undefined>;
-  listLeads(tenantId: number): Promise<Lead[]>;
-  createLead(lead: InsertLead): Promise<Lead>;
-  updateLeadStatus(id: number, tenantId: number, status: LeadStatus): Promise<Lead | undefined>;
-  countLeads(tenantId: number, fromDate?: Date, toDate?: Date): Promise<number>;
+  getLead(id: string | number, tenantId: string | number): Promise<Lead | undefined>;
+  listLeads(tenantId: string | number): Promise<Lead[]>;
+  createLead(lead: Omit<Lead, 'id' | '_id' | 'createdAt' | 'updatedAt'>): Promise<Lead>;
+  updateLeadStatus(id: string | number, tenantId: string | number, status: LeadStatus): Promise<Lead | undefined>;
+  countLeads(tenantId: string | number, fromDate?: Date, toDate?: Date): Promise<number>;
 
   // Traffic data methods
-  listTrafficData(tenantId: number, fromDate?: Date, toDate?: Date): Promise<TrafficData[]>;
-  getTopPages(tenantId: number, limit?: number): Promise<{ page: string, views: number }[]>;
-  getTrafficBySource(tenantId: number): Promise<{ source: string, count: number }[]>;
-  getDeviceDistribution(tenantId: number): Promise<{ deviceType: string, percentage: number }[]>;
+  listTrafficData(tenantId: string | number, fromDate?: Date, toDate?: Date): Promise<TrafficData[]>;
+  getTopPages(tenantId: string | number, limit?: number): Promise<{ page: string, views: number }[]>;
+  getTrafficBySource(tenantId: string | number): Promise<{ source: string, count: number }[]>;
+  getDeviceDistribution(tenantId: string | number): Promise<{ deviceType: string, percentage: number }[]>;
 
   // Activity logs
-  logActivity(activityLog: InsertActivityLog): Promise<ActivityLog>;
-  getRecentActivity(tenantId: number, limit?: number): Promise<ActivityLog[]>;
+  logActivity(activityLog: Omit<ActivityLog, 'id' | '_id' | 'createdAt'>): Promise<ActivityLog>;
+  getRecentActivity(tenantId: string | number, limit?: number): Promise<ActivityLog[]>;
+
+  // Customer methods
+  listCustomers(tenantId: string | number, page?: number, pageSize?: number): Promise<any[]>;
+  countCustomers(tenantId: string | number): Promise<number>;
+  getCustomer(id: string, tenantId?: string | number): Promise<any>;
+  getOrdersByCustomer(customerId: string, tenantId: string | number): Promise<any[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -200,20 +192,24 @@ export class MemStorage implements IStorage {
     return updatedTenant;
   }
 
+  async listTenants(): Promise<Tenant[]> {
+    return Array.from(this.tenants.values());
+  }
+
   async updateStripeCustomerId(userId: number, customerId: string): Promise<User> {
     const user = await this.getUser(userId);
     if (!user) throw new Error("User not found");
 
     const updatedUser = { ...user, updatedAt: new Date() };
     this.users.set(userId, updatedUser);
-    
+
     // In a real app, this would update the tenant's stripe customer ID
     const tenant = await this.getTenant(user.tenantId);
     if (tenant) {
       const updatedTenant = { ...tenant, stripeCustomerId: customerId, updatedAt: new Date() };
       this.tenants.set(tenant.id, updatedTenant);
     }
-    
+
     return updatedUser;
   }
 
@@ -223,19 +219,19 @@ export class MemStorage implements IStorage {
 
     const updatedUser = { ...user, updatedAt: new Date() };
     this.users.set(userId, updatedUser);
-    
+
     // In a real app, this would update the tenant's stripe information
     const tenant = await this.getTenant(user.tenantId);
     if (tenant) {
-      const updatedTenant = { 
-        ...tenant, 
+      const updatedTenant = {
+        ...tenant,
         stripeCustomerId: stripeInfo.customerId,
         stripeSubscriptionId: stripeInfo.subscriptionId,
-        updatedAt: new Date() 
+        updatedAt: new Date()
       };
       this.tenants.set(tenant.id, updatedTenant);
     }
-    
+
     return updatedUser;
   }
 
@@ -248,10 +244,11 @@ export class MemStorage implements IStorage {
     return undefined;
   }
 
-  async listProducts(tenantId: number, limit: number = 10): Promise<Product[]> {
+  async listProducts(tenantId: number, limit?: number): Promise<Product[]> {
+    const actualLimit = limit ?? 10; // Default to 10 items if undefined
     return Array.from(this.products.values())
       .filter((product) => product.tenantId === tenantId)
-      .slice(0, limit);
+      .slice(0, actualLimit);
   }
 
   async createProduct(productData: InsertProduct): Promise<Product> {
@@ -293,12 +290,15 @@ export class MemStorage implements IStorage {
     return undefined;
   }
 
-  async listOrders(tenantId: number, page: number = 1, pageSize: number = 10): Promise<Order[]> {
-    const start = (page - 1) * pageSize;
+  async listOrders(tenantId: number, page?: number, pageSize?: number): Promise<Order[]> {
+    const actualPage = page ?? 1; // Default to page 1 if undefined
+    const actualPageSize = pageSize ?? 10; // Default to 10 items per page
+
+    const start = (actualPage - 1) * actualPageSize;
     return Array.from(this.orders.values())
       .filter((order) => order.tenantId === tenantId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(start, start + pageSize);
+      .slice(start, start + actualPageSize);
   }
 
   async countOrders(tenantId: number, fromDate?: Date, toDate?: Date): Promise<number> {
@@ -355,9 +355,9 @@ export class MemStorage implements IStorage {
         if (toDate) match = match && order.createdAt <= toDate;
         return match;
       });
-    
+
     if (orders.length === 0) return 0;
-    
+
     const totalRevenue = orders.reduce((sum, order) => sum + Number(order.amount), 0);
     return totalRevenue / orders.length;
   }
@@ -416,25 +416,25 @@ export class MemStorage implements IStorage {
       .sort((a, b) => b.date.getTime() - a.date.getTime());
   }
 
-  async getTopPages(tenantId: number, limit: number = 5): Promise<{ page: string, views: number }[]> {
+  async getTopPages(tenantId: number, limit?: number): Promise<{ page: string, views: number }[]> {
     const pageViews = new Map<string, number>();
-    
+
     Array.from(this.traffic.values())
       .filter((data) => data.tenantId === tenantId)
       .forEach((data) => {
         const currentViews = pageViews.get(data.page) || 0;
         pageViews.set(data.page, currentViews + data.views);
       });
-    
+
     return Array.from(pageViews.entries())
       .map(([page, views]) => ({ page, views }))
       .sort((a, b) => b.views - a.views)
-      .slice(0, limit);
+      .slice(0, limit ?? 5);
   }
 
   async getTrafficBySource(tenantId: number): Promise<{ source: string, count: number }[]> {
     const sourceCount = new Map<string, number>();
-    
+
     Array.from(this.traffic.values())
       .filter((data) => data.tenantId === tenantId && data.source)
       .forEach((data) => {
@@ -442,7 +442,7 @@ export class MemStorage implements IStorage {
         const currentCount = sourceCount.get(source) || 0;
         sourceCount.set(source, currentCount + data.uniqueVisitors);
       });
-    
+
     return Array.from(sourceCount.entries())
       .map(([source, count]) => ({ source, count }))
       .sort((a, b) => b.count - a.count);
@@ -451,7 +451,7 @@ export class MemStorage implements IStorage {
   async getDeviceDistribution(tenantId: number): Promise<{ deviceType: string, percentage: number }[]> {
     const deviceCount = new Map<string, number>();
     let totalVisits = 0;
-    
+
     Array.from(this.traffic.values())
       .filter((data) => data.tenantId === tenantId && data.deviceType)
       .forEach((data) => {
@@ -461,12 +461,12 @@ export class MemStorage implements IStorage {
         deviceCount.set(deviceType, newCount);
         totalVisits += data.uniqueVisitors;
       });
-    
+
     if (totalVisits === 0) return [];
-    
+
     return Array.from(deviceCount.entries())
-      .map(([deviceType, count]) => ({ 
-        deviceType, 
+      .map(([deviceType, count]) => ({
+        deviceType,
         percentage: Math.round((count / totalVisits) * 100)
       }))
       .sort((a, b) => b.percentage - a.percentage);
@@ -480,11 +480,30 @@ export class MemStorage implements IStorage {
     return activity;
   }
 
-  async getRecentActivity(tenantId: number, limit: number = 10): Promise<ActivityLog[]> {
+  async getRecentActivity(tenantId: number, limit?: number): Promise<ActivityLog[]> {
     return Array.from(this.activities.values())
       .filter((activity) => activity.tenantId === tenantId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
+      .slice(0, limit ?? 10);
+  }
+
+  // Customer methods
+  async listCustomers(tenantId: number, page?: number, pageSize?: number): Promise<any[]> {
+    // In-memory storage doesn't support real customer data
+    // This is just a fallback for testing - real data comes from MongoDB
+    return [];
+  }
+
+  async countCustomers(tenantId: number): Promise<number> {
+    // In-memory storage doesn't support real customer data
+    return 0;
+  }
+
+  // Get orders by customer ID
+  async getOrdersByCustomer(customerId: string, tenantId: number): Promise<any[]> {
+    // In-memory storage doesn't support real order data
+    // This is just a fallback for testing - real data comes from MongoDB
+    return [];
   }
 }
 

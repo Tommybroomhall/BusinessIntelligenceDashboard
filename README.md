@@ -158,6 +158,41 @@ BusinessIntelligenceDashboard/
 └── README.md               # Project documentation
 ```
 
+## API Endpoints
+
+The application provides the following API endpoints:
+
+### Authentication
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user information
+- `POST /api/auth/logout` - User logout
+
+### Dashboard
+- `GET /api/dashboard` - Get dashboard overview data
+
+### Customers
+- `GET /api/customers` - List all customers
+- `GET /api/customers/:id` - Get customer details
+- `GET /api/customers/:id/orders` - Get orders for a specific customer
+
+### Products
+- `GET /api/products` - List all products
+- `GET /api/products/:id` - Get product details (NEW: fetches live data for product dialogs)
+- `POST /api/products` - Create a new product
+- `PATCH /api/products/:id` - Update a product (live editing)
+- `GET /api/products/stock-levels` - Get available stock levels
+
+### Orders
+- `GET /api/orders` - List all orders
+- `GET /api/orders/:id` - Get order details
+- `POST /api/orders` - Create a new order
+- `PATCH /api/orders/:id/status` - Update order status
+
+### Tenant
+- `GET /api/tenant` - Get tenant information
+- `PATCH /api/tenant` - Update tenant information
+- `POST /api/tenant/apikeys` - Update tenant API keys
+
 ## Current Development Status
 
 The application is currently in development with the following components implemented:
@@ -167,11 +202,11 @@ The application is currently in development with the following components implem
 - ✅ Sales dashboard
 - ✅ MongoDB multi-tenant support
 - ✅ Client-specific database isolation
-- ❌ Customer management (in progress)
-- ❌ Product management (in progress)
+- ✅ Customer management with real MongoDB data
+- ✅ Product management with live MongoDB data, full editing, and robust product details dialog (no mock data)
 - ❌ Traffic analysis (in progress)
 
-Some pages may display mock data or be unavailable as development continues.
+All data is now pulled directly from MongoDB - no mock data is used in the codebase. Product details and editing dialogs are fully live and robust.
 
 ## Contributing
 

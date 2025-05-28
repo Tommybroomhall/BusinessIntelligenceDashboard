@@ -3,13 +3,16 @@ import { apiRequest } from './queryClient';
 export type StockLevel = 'none' | 'low' | 'good' | 'high';
 
 export interface Product {
-  id: number;
-  tenantId: number;
+  id: string | number;  // Support both MongoDB ObjectId strings and numeric IDs
+  _id?: string;         // MongoDB's native ID field
+  tenantId: string | number;
   name: string;
   description?: string;
   price: number;
+  costPrice?: number;
   category?: string;
   imageUrl?: string;
+  supplierUrl?: string;
   stockLevel: StockLevel;
   createdAt: string;
   updatedAt: string;
@@ -29,7 +32,7 @@ export const productApi = {
   /**
    * Fetch a product by ID
    */
-  getById: async (id: number): Promise<Product> => {
+  getById: async (id: string | number): Promise<Product> => {
     const res = await apiRequest('GET', `/api/products/${id}`);
     return res.json();
   },
@@ -45,7 +48,7 @@ export const productApi = {
   /**
    * Update a product
    */
-  update: async (id: number, product: Partial<Product>): Promise<Product> => {
+  update: async (id: string | number, product: Partial<Product>): Promise<Product> => {
     const res = await apiRequest('PATCH', `/api/products/${id}`, product);
     return res.json();
   },
@@ -53,7 +56,7 @@ export const productApi = {
   /**
    * Update a product's stock level
    */
-  updateStockLevel: async (id: number, stockLevel: StockLevel): Promise<Product> => {
+  updateStockLevel: async (id: string | number, stockLevel: StockLevel): Promise<Product> => {
     const res = await apiRequest('PATCH', `/api/products/${id}/stock-level`, { stockLevel });
     return res.json();
   },
@@ -73,4 +76,4 @@ export const productApi = {
     const res = await apiRequest('GET', `/api/products/by-stock-level/${stockLevel}`);
     return res.json();
   }
-}; 
+};

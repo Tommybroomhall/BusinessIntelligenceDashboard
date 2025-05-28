@@ -112,30 +112,11 @@ export default function Settings() {
     role: "viewer",
   });
 
-  // Sample team members
-  const teamMembers = [
-    {
-      id: "1",
-      name: "Jane Smith",
-      email: "jane.smith@example.com",
-      role: "Admin",
-      status: "Active",
-    },
-    {
-      id: "2",
-      name: "John Doe",
-      email: "john.doe@example.com",
-      role: "Editor",
-      status: "Active",
-    },
-    {
-      id: "3",
-      name: "Michael Brown",
-      email: "michael.brown@example.com",
-      role: "Viewer",
-      status: "Invited",
-    },
-  ];
+  // Team members from API
+  const { data: teamMembers, isLoading: isTeamLoading, error: teamError } = useQuery({
+    queryKey: ['/api/users'],
+    staleTime: 60 * 1000, // 1 minute
+  });
 
   // Handle business info submit
   const submitBusinessInfo = async (e: React.FormEvent) => {
@@ -156,25 +137,21 @@ export default function Settings() {
     }
   };
 
-  // Load environment variables on component mount
+  // Load environment variables from API
+  const { data: envData, isLoading: isEnvLoading } = useQuery({
+    queryKey: ['/api/settings/env'],
+    staleTime: 60 * 1000, // 1 minute
+  });
+
+  // Update integrations when env data is loaded
   useEffect(() => {
-    // In a real app, this would fetch from the server
-    // For demo purposes, we'll simulate loading from .env
-    setIntegrations({
-      ...integrations,
-      vercelApiToken: "your_vercel_api_token_here",
-      vercelProjectId: "your_vercel_project_id_here",
-      vercelTeamId: "your_vercel_team_id_here",
-      ga4MeasurementId: "G-XXXXXXXXXX",
-      stripeSecretKey: "sk_test_your_stripe_secret_key",
-      stripePublicKey: "pk_test_your_stripe_public_key",
-      stripePriceId: "price_your_price_id",
-      databaseUrl: "postgres://username:password@hostname:port/database_name",
-      sessionSecret: "your_random_strong_session_secret",
-      port: "5000",
-      nodeEnv: "development"
-    });
-  }, []);
+    if (envData) {
+      setIntegrations({
+        ...integrations,
+        ...envData
+      });
+    }
+  }, [envData]);
 
   // Toggle password visibility
   const [showSecrets, setShowSecrets] = useState({
@@ -979,50 +956,91 @@ export default function Settings() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {teamMembers.map((member) => (
-                      <TableRow key={member.id}>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Avatar className="h-8 w-8 mr-2">
-                              <AvatarFallback>
-                                {member.name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span>{member.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{member.email}</TableCell>
-                        <TableCell>{member.role}</TableCell>
-                        <TableCell>
-                          <Badge variant={member.status === "Active" ? "default" : "outline"}>
-                            {member.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">
-                            Edit
-                          </Button>
-                          {member.id !== "1" && (
-                            <Button variant="ghost" size="sm" className="text-red-500">
-                              Remove
-                            </Button>
-                          )}
-                        </TableCell>
+                {isTeamLoading && (
+                  <div className="flex items-center justify-center p-6">
+                    <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+                    <span className="ml-3 text-gray-600">Loading team members...</span>
+                  </div>
+                )}
+
+                {teamError && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-4">
+                    <div className="flex">
+                      <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                      <div>
+                        <h3 className="font-medium">Error Loading Team Members</h3>
+                        <p className="text-sm">Could not load team members from MongoDB. Please check your database connection.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!isTeamLoading && !teamError && !teamMembers && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-4">
+                    <div className="flex">
+                      <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                      <div>
+                        <h3 className="font-medium">No Team Data Available</h3>
+                        <p className="text-sm">No team members data is available from MongoDB. Please check your database connection.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!isTeamLoading && !teamError && teamMembers && teamMembers.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {teamMembers.map((member) => (
+                        <TableRow key={member.id}>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <Avatar className="h-8 w-8 mr-2">
+                                <AvatarFallback>
+                                  {member.name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{member.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{member.email}</TableCell>
+                          <TableCell>{member.role}</TableCell>
+                          <TableCell>
+                            <Badge variant={member.status === "Active" ? "default" : "outline"}>
+                              {member.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm">
+                              Edit
+                            </Button>
+                            {member.id !== "1" && (
+                              <Button variant="ghost" size="sm" className="text-red-500">
+                                Remove
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+
+                {!isTeamLoading && !teamError && teamMembers && teamMembers.length === 0 && (
+                  <div className="text-center p-6 border rounded-lg bg-gray-50">
+                    <UserX className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                    <h3 className="text-lg font-medium text-gray-900">No Team Members</h3>
+                    <p className="text-gray-500 mt-1">You haven't added any team members yet.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

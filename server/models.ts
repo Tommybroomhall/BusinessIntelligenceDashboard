@@ -5,6 +5,7 @@ export const UserRoles = ['admin', 'editor', 'viewer'] as const;
 export const LeadStatuses = ['new', 'contacted', 'won', 'lost'] as const;
 export const OrderStatuses = ['pending', 'paid', 'processing', 'shipped', 'delivered', 'refunded', 'canceled'] as const;
 export const StockLevels = ['none', 'low', 'good', 'high'] as const;
+export const CustomerStatuses = ['active', 'inactive'] as const;
 
 // Define interfaces for our documents
 export interface ITenant extends Document {
@@ -37,13 +38,26 @@ export interface IUser extends Document {
   isActive: boolean;
 }
 
+export interface ICustomer extends Document {
+  tenantId: mongoose.Types.ObjectId;
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  status: typeof CustomerStatuses[number];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface IProduct extends Document {
   tenantId: mongoose.Types.ObjectId;
   name: string;
   description?: string;
   price: number;
+  costPrice?: number;
   category?: string;
   imageUrl?: string;
+  supplierUrl?: string;
   stockLevel: typeof StockLevels[number];
   createdAt: Date;
   updatedAt: Date;
@@ -123,13 +137,26 @@ const UserSchema = new Schema<IUser>({
   isActive: { type: Boolean, default: true }
 });
 
+const CustomerSchema = new Schema<ICustomer>({
+  tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  phone: { type: String, required: true },
+  location: { type: String, required: true },
+  status: { type: String, enum: CustomerStatuses, default: 'active' },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
 const ProductSchema = new Schema<IProduct>({
   tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
   name: { type: String, required: true },
   description: String,
   price: { type: Number, required: true },
+  costPrice: Number,
   category: String,
   imageUrl: String,
+  supplierUrl: String,
   stockLevel: { type: String, enum: StockLevels, default: 'good' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
@@ -181,6 +208,7 @@ const ActivityLogSchema = new Schema<IActivityLog>({
 // Create and export models
 export const Tenant: Model<ITenant> = mongoose.models.Tenant || mongoose.model<ITenant>('Tenant', TenantSchema);
 export const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+export const Customer: Model<ICustomer> = mongoose.models.Customer || mongoose.model<ICustomer>('Customer', CustomerSchema);
 export const Product: Model<IProduct> = mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema);
 export const Order: Model<IOrder> = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
 export const OrderItem: Model<IOrderItem> = mongoose.models.OrderItem || mongoose.model<IOrderItem>('OrderItem', OrderItemSchema);

@@ -30,15 +30,62 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { OrderDetailsDialog } from "@/components/orders/order-details-dialog";
+
+// Define types for API responses
+interface Order {
+  _id?: string;
+  id?: string;
+  orderNumber?: string;
+  customerName?: string;
+  customer?: string;
+  amount: number;
+  createdAt?: string;
+  date?: string;
+  status: string;
+}
+
+interface SalesData {
+  orders?: Order[];
+  revenue?: {
+    current: number;
+    target: number;
+    percentage: number;
+  };
+  pagination?: {
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+}
 
 export default function Sales() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // State for order details dialog
+  const [selectedOrderId, setSelectedOrderId] = useState<string | number | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Handle order click
+  const handleOrderClick = (order: Order) => {
+    // Ensure we're using the full MongoDB ObjectId string
+    const orderId = order._id || order.id || null;
+    console.log('Selected order ID:', orderId);
+    setSelectedOrderId(orderId);
+    setDialogOpen(true);
+  };
+
   // Fetch sales data
-  const { data: salesData, isLoading } = useQuery({
+  const { data: salesData, isLoading } = useQuery<SalesData>({
     queryKey: ['/api/sales', page, pageSize, searchQuery],
+    staleTime: 60 * 1000, // 1 minute
+  });
+
+  // Fetch orders data
+  const { data: ordersData, isLoading: isOrdersLoading } = useQuery<Order[]>({
+    queryKey: ['/api/orders', page, pageSize, searchQuery],
     staleTime: 60 * 1000, // 1 minute
   });
 
@@ -50,7 +97,7 @@ export default function Sales() {
   };
 
   // Use real orders data from API
-  const orders = salesData?.orders || [];
+  const orders = ordersData || salesData?.orders || [];
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -127,11 +174,15 @@ export default function Sales() {
                     </TableRow>
                   ) : (
                     orders.map((order) => (
-                      <TableRow key={order._id || order.id}>
+                      <TableRow
+                        key={order._id || order.id}
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleOrderClick(order)}
+                      >
                         <TableCell className="font-medium">{order.orderNumber || order.id}</TableCell>
                         <TableCell>{order.customerName || order.customer}</TableCell>
                         <TableCell>${Number(order.amount).toFixed(2)}</TableCell>
-                        <TableCell>{new Date(order.createdAt || order.date).toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(order.createdAt || order.date || Date.now()).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
@@ -141,7 +192,14 @@ export default function Sales() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOrderClick(order);
+                            }}
+                          >
                             View
                           </Button>
                         </TableCell>
@@ -245,6 +303,13 @@ export default function Sales() {
           </Card>
         </div>
       </div>
+
+      {/* Order Details Dialog */}
+      <OrderDetailsDialog
+        orderId={selectedOrderId}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }

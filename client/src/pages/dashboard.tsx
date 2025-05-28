@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { SalesChart } from "@/components/dashboard/sales-chart";
@@ -33,17 +33,8 @@ export default function Dashboard() {
   // Process orders data for sales chart
   const salesChartData = React.useMemo(() => {
     if (!ordersData || ordersData.length === 0) {
-      // Return default data if no orders
-      return {
-        monthly: Array.from({ length: 12 }, (_, i) => ({
-          date: `2023-${String(i + 1).padStart(2, '0')}-01`,
-          value: 0
-        })),
-        weekly: Array.from({ length: 4 }, (_, i) => ({
-          date: `Week ${i + 1}`,
-          value: 0
-        }))
-      };
+      // Return null if no orders to fail loudly
+      return null;
     }
 
     // Group orders by month
@@ -93,13 +84,8 @@ export default function Dashboard() {
   // Process traffic data from API
   const trafficChannelsData = React.useMemo(() => {
     if (!data?.traffic?.bySource || data.traffic.bySource.length === 0) {
-      // Return default data if no traffic data
-      return [
-        { name: "Organic Search", value: 0, color: "hsl(var(--chart-1))" },
-        { name: "Direct", value: 0, color: "hsl(var(--chart-2))" },
-        { name: "Social Media", value: 0, color: "hsl(var(--chart-3))" },
-        { name: "Email", value: 0, color: "hsl(var(--chart-4))" },
-      ];
+      // Return null if no traffic data to fail loudly
+      return null;
     }
 
     // Map API data to chart format
@@ -117,41 +103,14 @@ export default function Dashboard() {
     }));
   }, [data]);
 
-  const trafficTotal = trafficChannelsData.reduce((acc, item) => acc + item.value, 0);
+  // Calculate traffic total only if we have data
+  const trafficTotal = trafficChannelsData ? trafficChannelsData.reduce((acc, item) => acc + item.value, 0) : 0;
 
   // Process activity data from API
   const activitiesData = React.useMemo(() => {
     if (!data?.recentActivity || data.recentActivity.length === 0) {
-      // Return default data if no activity data
-      return [
-        {
-          id: "1",
-          type: "order",
-          title: "New order received",
-          description: "Order #5789 for $109.95",
-          details: "Customer: <span class='font-medium'>Sarah Thompson</span>",
-          status: "Paid",
-          timestamp: new Date(Date.now() - 5 * 60000), // 5 minutes ago
-        },
-        {
-          id: "3",
-          type: "order",
-          title: "New order received",
-          description: "Order #5788 for $245.30",
-          details: "Customer: <span class='font-medium'>David Williams</span>",
-          status: "Paid",
-          timestamp: new Date(Date.now() - 47 * 60000), // 47 minutes ago
-        },
-        {
-          id: "4",
-          type: "system",
-          title: "System update completed",
-          description: "Analytics module v2.3.0",
-          details: "All systems operating normally",
-          status: "System",
-          timestamp: new Date(Date.now() - 60 * 60000), // 1 hour ago
-        },
-      ];
+      // Return null if no activity data to fail loudly
+      return null;
     }
 
     // Map API data to activity format
@@ -178,18 +137,8 @@ export default function Dashboard() {
   // Process popular products data from API
   const popularProductsData = React.useMemo(() => {
     if (!data?.popularProducts || data.popularProducts.length === 0) {
-      // Return default data if no product data
-      return [
-        {
-          id: "1",
-          name: "No products found",
-          category: "N/A",
-          price: 0,
-          imageUrl: "https://placehold.co/80x80?text=No+Image",
-          sold: 0,
-          earnings: 0,
-        }
-      ];
+      // Return null if no product data to fail loudly
+      return null;
     }
 
     // Map API data to product format
@@ -240,20 +189,45 @@ export default function Dashboard() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <SalesChart data={salesChartData} />
-        <TrafficChannelsChart
-          data={trafficChannelsData}
-          total={trafficTotal}
-        />
+        {salesChartData ? (
+          <SalesChart data={salesChartData} />
+        ) : (
+          <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 flex items-center justify-center h-64">
+            <p className="font-medium">No sales data available from MongoDB</p>
+          </div>
+        )}
+
+        {trafficChannelsData ? (
+          <TrafficChannelsChart
+            data={trafficChannelsData}
+            total={trafficTotal}
+          />
+        ) : (
+          <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 flex items-center justify-center h-64">
+            <p className="font-medium">No traffic data available from MongoDB</p>
+          </div>
+        )}
       </div>
 
       {/* Activity, Products, and Stock Levels */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
         <div className="lg:col-span-2">
-          <ActivityFeed activities={activitiesData} />
+          {activitiesData ? (
+            <ActivityFeed activities={activitiesData} />
+          ) : (
+            <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 flex items-center justify-center h-64">
+              <p className="font-medium">No activity data available from MongoDB</p>
+            </div>
+          )}
         </div>
         <div className="lg:col-span-2">
-          <PopularProducts products={popularProductsData} />
+          {popularProductsData ? (
+            <PopularProducts products={popularProductsData} />
+          ) : (
+            <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 flex items-center justify-center h-64">
+              <p className="font-medium">No product data available from MongoDB</p>
+            </div>
+          )}
         </div>
         <div className="lg:col-span-1">
           <StockLevelWidget />

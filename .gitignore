@@ -81,5 +81,5 @@ vite.config.ts.*
 *.tar.gz
 *.zip
 
-# drizzle
-.drizzle/
+# Removed files that should not be restored
+shared/schema.ts

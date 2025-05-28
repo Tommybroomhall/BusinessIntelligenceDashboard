@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 type StockLevel = 'none' | 'low' | 'good' | 'high';
 
 interface StockLevelSelectorProps {
-  productId: number;
+  productId: string | number;
   currentLevel: StockLevel;
   onUpdate: (newLevel: StockLevel) => Promise<void>;
 }
@@ -18,7 +18,7 @@ export function StockLevelSelector({ productId, currentLevel, onUpdate }: StockL
 
   const handleUpdate = async () => {
     if (level === currentLevel) return;
-    
+
     setIsLoading(true);
     try {
       await onUpdate(level);
@@ -52,9 +52,9 @@ export function StockLevelSelector({ productId, currentLevel, onUpdate }: StockL
           <SelectItem value="high">High</SelectItem>
         </SelectContent>
       </Select>
-      
-      <Button 
-        variant="outline" 
+
+      <Button
+        variant="outline"
         size="sm"
         disabled={level === currentLevel || isLoading}
         onClick={handleUpdate}
@@ -63,4 +63,4 @@ export function StockLevelSelector({ productId, currentLevel, onUpdate }: StockL
       </Button>
     </div>
   );
-} 
+}

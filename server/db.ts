@@ -16,17 +16,27 @@ const options = {
  */
 export async function connectToDatabase() {
   try {
-    // Check if we have a connection string
-    if (!process.env.MONGODB_URI) {
-      log('No MongoDB connection string. Using in-memory storage.', 'mongodb');
+    // Check if we have MongoDB credentials
+    if (process.env.MONGODB_USERNAME && process.env.MONGODB_PASSWORD && process.env.MONGODB_CLUSTER) {
+      // Create MongoDB connection URI
+      const database = process.env.MONGODB_DATABASE || 'businessdash';
+      const uri = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER}/${database}?retryWrites=true&w=majority`;
+
+      // Connect to MongoDB
+      await mongoose.connect(uri, options);
+
+      log('Connected to MongoDB successfully', 'mongodb');
+      return true;
+    } else if (process.env.MONGODB_URI) {
+      // Connect to MongoDB using the connection string
+      await mongoose.connect(process.env.MONGODB_URI, options);
+
+      log('Connected to MongoDB successfully', 'mongodb');
+      return true;
+    } else {
+      log('No MongoDB connection string or credentials. Using in-memory storage.', 'mongodb');
       return false;
     }
-
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI, options);
-
-    log('Connected to MongoDB successfully', 'mongodb');
-    return true;
   } catch (error) {
     log(`MongoDB connection error: ${error}`, 'mongodb');
     return false;

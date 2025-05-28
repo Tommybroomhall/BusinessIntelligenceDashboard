@@ -2,10 +2,35 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { connectToDatabase } from "./db";
+import dotenv from "dotenv";
+import session from "express-session";
+import memorystore from "memorystore";
+import cookieParser from "cookie-parser";
+
+// Load environment variables from .env file
+dotenv.config();
+
+// Create a MemoryStore constructor for session storage
+const MemoryStore = memorystore(session);
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+
+// Configure session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'business-dash-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  },
+  store: new MemoryStore({
+    checkPeriod: 86400000 // Clear expired sessions every 24h
+  })
+}));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -24,10 +49,6 @@ app.use((req, res, next) => {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
       }
 
       log(logLine);

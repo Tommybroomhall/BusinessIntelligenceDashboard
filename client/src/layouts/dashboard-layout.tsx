@@ -11,10 +11,6 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [dateRange, setDateRange] = useState({
-    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-    to: new Date()
-  });
   const { isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
   
@@ -62,8 +58,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <main className="flex-1 overflow-y-auto bg-gray-50 pt-16 md:pt-0">
         <Topbar 
           onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
         />
         
         {children}

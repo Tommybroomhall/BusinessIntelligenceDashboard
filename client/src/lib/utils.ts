@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
  * @returns Formatted currency string
  */
 export function formatCurrency(
-  value: number, 
+  value: number,
   options: Intl.NumberFormatOptions = {}
 ): string {
   return new Intl.NumberFormat('en-US', {
@@ -22,4 +22,24 @@ export function formatCurrency(
     maximumFractionDigits: 2,
     ...options
   }).format(value)
+}
+
+/**
+ * Format a date string
+ * @param dateString - The date string to format
+ * @returns Formatted date string
+ */
+export function formatDate(dateString: string): string {
+  if (!dateString) return 'N/A';
+
+  const date = new Date(dateString);
+
+  // Check if date is valid
+  if (isNaN(date.getTime())) return 'Invalid date';
+
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }

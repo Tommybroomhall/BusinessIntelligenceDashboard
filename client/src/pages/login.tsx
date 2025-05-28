@@ -40,50 +40,57 @@ export default function Login() {
   const { setTenant } = useTenant();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
-  
+  const [isLoading, setIsLoading] = useState(false);
+
   // Form definition
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: "admin@businessdash.com",
+      password: "password123",
     },
   });
-  
+
   // Submit handler
   const onSubmit = async (data: LoginFormValues) => {
     try {
-      // This is a simplified login process for the demo
-      // In a real app, this would make an API call to authenticate
-      
       if (activeTab === "login") {
-        await login(data.email, data.password);
+        setIsLoading(true);
+        console.log("Submitting login form:", data.email);
         
-        // Set tenant data
-        setTenant({
-          id: "tenant-1",
-          name: "BusinessDash",
-          email: "info@businessdash.com",
-          logoUrl: "",
-        });
-        
+        // Real login with API call
+        const response = await login(data.email, data.password);
+        console.log("Login response received:", response);
+
+        // Set tenant data from the response
+        if (response && response.tenant) {
+          setTenant(response.tenant);
+        }
+
         toast({
           title: "Login successful",
           description: "Welcome to your dashboard",
         });
-        
-        // Redirect to dashboard
-        navigate("/");
+
+        // Use a timeout to ensure the auth state is updated before navigation
+        setTimeout(() => {
+          console.log("Navigating to dashboard...");
+          navigate("/");
+          setIsLoading(false);
+        }, 300);
       } else {
-        // Register logic
+        // Register logic - in a real app, this would call a registration API
         toast({
-          title: "Registration successful",
-          description: "Please check your email to verify your account",
+          title: "Registration not implemented",
+          description: "Please use the login tab with admin@businessdash.com / password123",
+          variant: "destructive",
         });
-        
+
         setActiveTab("login");
       }
     } catch (error) {
+      setIsLoading(false);
+      console.error("Login error in component:", error);
       toast({
         title: "Authentication failed",
         description: "Invalid email or password",
@@ -91,7 +98,7 @@ export default function Login() {
       });
     }
   };
-  
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md">
@@ -146,8 +153,8 @@ export default function Login() {
                       Forgot password?
                     </a>
                   </div>
-                  <Button type="submit" className="w-full">
-                    Sign In
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Signing in...' : 'Sign In'}
                   </Button>
                 </form>
               </Form>
@@ -181,8 +188,8 @@ export default function Login() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full">
-                    Create Account
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Creating Account...' : 'Create Account'}
                   </Button>
                 </form>
               </Form>

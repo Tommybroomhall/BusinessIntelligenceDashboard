@@ -30,7 +30,7 @@ export class MongoStorage implements IStorage {
   }
 
   /**
-   * Initialize the database with sample data if it's empty
+   * Initialize the database connection
    */
   async initializeData() {
     if (this.initialized) return;
@@ -40,39 +40,15 @@ export class MongoStorage implements IStorage {
       const tenantCount = await Tenant.countDocuments();
 
       if (tenantCount === 0) {
-        log("Initializing database with sample data", "mongodb");
-
-        // Create a tenant
-        const tenant = new Tenant({
-          name: "BusinessDash Inc.",
-          email: "info@businessdash.com",
-          phone: "+1 (555) 123-4567",
-          address: "123 Main St, Suite 200, San Francisco, CA 94105",
-          website: "https://www.businessdash.com",
-          logoUrl: "",
-          primaryColor: "#0ea5e9",
-        });
-
-        const createdTenant = await tenant.save();
-
-        // Create a user
-        const hash = await bcrypt.hash("password123", 10);
-        const user = new User({
-          tenantId: createdTenant._id,
-          email: "admin@businessdash.com",
-          name: "Jane Smith",
-          passwordHash: hash,
-          role: "admin",
-          isActive: true,
-        });
-
-        await user.save();
-        log("Sample data initialized successfully", "mongodb");
+        log("No tenants found in the database. Use the load-dummy-data.ts script to populate the database with test data.", "mongodb");
+        log("Example: npm run ts-node -- scripts/load-dummy-data.ts", "mongodb");
+      } else {
+        log(`Found ${tenantCount} tenants in the database.`, "mongodb");
       }
 
       this.initialized = true;
     } catch (error) {
-      log(`Error initializing data: ${error}`, "mongodb");
+      log(`Error initializing database connection: ${error}`, "mongodb");
     }
   }
 
@@ -172,13 +148,52 @@ export class MongoStorage implements IStorage {
     }
   }
 
-  // Product methods
-  async getProduct(id: number): Promise<any> {
+  async listTenants(): Promise<any[]> {
     try {
+      const TenantModel = this.getModel<ITenant>('Tenant');
+      return await TenantModel.find().exec();
+    } catch (error) {
+      log(`Error listing tenants: ${error}`, "mongodb");
+      return [];
+    }
+  }
+
+  // Product methods
+  async getProduct(id: string | number): Promise<any> {
+    try {
+      console.log(`[mongodb] Getting product with id: ${id}`);
       const ProductModel = this.getModel<IProduct>('Product');
-      return await ProductModel.findById(id);
+
+      const product = await ProductModel.findById(id);
+
+      if (!product) {
+        console.log(`[mongodb] No product found with id ${id}`);
+        return null;
+      }
+
+      // Transform the product to match frontend expectations
+      const productObj = product.toObject();
+      const transformedProduct = {
+        id: productObj._id.toString(),
+        _id: productObj._id.toString(),
+        tenantId: productObj.tenantId.toString(),
+        name: productObj.name,
+        description: productObj.description || '',
+        price: productObj.price,
+        costPrice: productObj.costPrice || 0,
+        category: productObj.category || '',
+        imageUrl: productObj.imageUrl || '',
+        supplierUrl: productObj.supplierUrl || '',
+        stockLevel: productObj.stockLevel,
+        isActive: productObj.isActive,
+        createdAt: productObj.createdAt.toISOString(),
+        updatedAt: productObj.updatedAt.toISOString()
+      };
+
+      return transformedProduct;
     } catch (error) {
       log(`Error getting product: ${error}`, "mongodb");
+      console.error('Full error:', error);
       return undefined;
     }
   }
@@ -208,27 +223,296 @@ export class MongoStorage implements IStorage {
     }
   }
 
-  async listProducts(tenantId: number, limit?: number): Promise<any[]> {
+  async getProductsByStockLevel(tenantId: number, stockLevel: string): Promise<any[]> {
     try {
+      console.log(`[mongodb] Getting products with stock level ${stockLevel} for tenant ${tenantId}`);
       const ProductModel = this.getModel<IProduct>('Product');
-      let query = ProductModel.find({ tenantId });
-      if (limit) {
-        query = query.limit(limit);
+
+      // Convert tenantId to ObjectId if needed
+      let tenantIdObj;
+      try {
+        if (typeof tenantId === 'string' && mongoose.Types.ObjectId.isValid(tenantId)) {
+          tenantIdObj = new mongoose.Types.ObjectId(tenantId);
+        } else if (typeof tenantId === 'number') {
+          // For numeric IDs, we need to find the corresponding tenant first
+          const tenant = await this.getModel<ITenant>('Tenant').findOne({ id: tenantId });
+          if (tenant) {
+            tenantIdObj = tenant._id;
+          } else {
+            tenantIdObj = tenantId;
+          }
+        } else {
+          tenantIdObj = tenantId;
+        }
+      } catch (err) {
+        console.error(`[mongodb] Failed to convert tenantId: ${tenantId} - ${err}`);
+        tenantIdObj = tenantId;
       }
-      return await query.exec();
+
+      // Find products with the specified stock level
+      const products = await ProductModel.find({
+        tenantId: tenantIdObj,
+        stockLevel: stockLevel
+      }).exec();
+
+      // Transform the products to match frontend expectations
+      const transformedProducts = products.map(product => {
+        const productObj = product.toObject();
+        return {
+          id: productObj._id.toString(),
+          _id: productObj._id.toString(),
+          tenantId: productObj.tenantId.toString(),
+          name: productObj.name,
+          description: productObj.description || '',
+          price: productObj.price,
+          costPrice: productObj.costPrice || 0,
+          category: productObj.category || '',
+          imageUrl: productObj.imageUrl || '',
+          supplierUrl: productObj.supplierUrl || '',
+          stockLevel: productObj.stockLevel,
+          isActive: productObj.isActive,
+          createdAt: productObj.createdAt.toISOString(),
+          updatedAt: productObj.updatedAt.toISOString()
+        };
+      });
+
+      return transformedProducts;
+    } catch (error) {
+      log(`Error getting products by stock level: ${error}`, "mongodb");
+      console.error('Full error:', error);
+      return [];
+    }
+  }
+
+  async updateProductStockLevel(id: string | number, tenantId: number, stockLevel: string): Promise<any> {
+    try {
+      console.log(`[mongodb] Updating stock level for product ${id} to ${stockLevel}`);
+      const ProductModel = this.getModel<IProduct>('Product');
+
+      // Convert tenantId to ObjectId if needed
+      let tenantIdObj;
+      try {
+        if (typeof tenantId === 'string' && mongoose.Types.ObjectId.isValid(tenantId)) {
+          tenantIdObj = new mongoose.Types.ObjectId(tenantId);
+        } else if (typeof tenantId === 'number') {
+          // For numeric IDs, we need to find the corresponding tenant first
+          const tenant = await this.getModel<ITenant>('Tenant').findOne({ id: tenantId });
+          if (tenant) {
+            tenantIdObj = tenant._id;
+          } else {
+            tenantIdObj = tenantId;
+          }
+        } else {
+          tenantIdObj = tenantId;
+        }
+      } catch (err) {
+        console.error(`[mongodb] Failed to convert tenantId: ${tenantId} - ${err}`);
+        tenantIdObj = tenantId;
+      }
+
+      // Find and update the product
+      const product = await ProductModel.findOneAndUpdate(
+        { _id: id, tenantId: tenantIdObj },
+        { stockLevel, updatedAt: new Date() },
+        { new: true }
+      );
+
+      if (!product) {
+        console.log(`[mongodb] No product found with id ${id} and tenantId ${tenantId}`);
+        return null;
+      }
+
+      // Transform the product to match frontend expectations
+      const productObj = product.toObject();
+      const transformedProduct = {
+        id: productObj._id.toString(),
+        _id: productObj._id.toString(),
+        tenantId: productObj.tenantId.toString(),
+        name: productObj.name,
+        description: productObj.description || '',
+        price: productObj.price,
+        costPrice: productObj.costPrice || 0,
+        category: productObj.category || '',
+        imageUrl: productObj.imageUrl || '',
+        supplierUrl: productObj.supplierUrl || '',
+        stockLevel: productObj.stockLevel,
+        isActive: productObj.isActive,
+        createdAt: productObj.createdAt.toISOString(),
+        updatedAt: productObj.updatedAt.toISOString()
+      };
+
+      return transformedProduct;
+    } catch (error) {
+      log(`Error updating product stock level: ${error}`, "mongodb");
+      console.error('Full error:', error);
+      return undefined;
+    }
+  }
+
+  async listProducts(tenantId: any, limit?: number): Promise<any[]> {
+    try {
+      console.log(`[mongodb] Listing products for tenant: ${tenantId}`);
+      const ProductModel = this.getModel<IProduct>('Product');
+
+      // Handle different types of tenantId
+      let tenantIdObj = tenantId;
+
+      // If tenantId is already a MongoDB ObjectId, use it directly
+      if (tenantId instanceof mongoose.Types.ObjectId) {
+        console.log(`[mongodb] Using ObjectId directly: ${tenantId}`);
+      }
+      // If tenantId is a string that looks like an ObjectId, convert it
+      else if (typeof tenantId === 'string' && mongoose.Types.ObjectId.isValid(tenantId)) {
+        try {
+          tenantIdObj = new mongoose.Types.ObjectId(tenantId);
+          console.log(`[mongodb] Converted string to ObjectId: ${tenantIdObj}`);
+        } catch (err) {
+          console.error(`[mongodb] Failed to convert string to ObjectId: ${tenantId} - ${err}`);
+        }
+      }
+      // If tenantId is a number, try to find the tenant with that ID
+      else if (typeof tenantId === 'number') {
+        try {
+          const TenantModel = this.getModel<ITenant>('Tenant');
+          const tenant = await TenantModel.findOne({ id: tenantId });
+          if (tenant) {
+            tenantIdObj = tenant._id;
+            console.log(`[mongodb] Found tenant with numeric ID ${tenantId}, using ObjectId: ${tenantIdObj}`);
+          } else {
+            console.log(`[mongodb] No tenant found with numeric ID ${tenantId}, using as is`);
+          }
+        } catch (err) {
+          console.error(`[mongodb] Error finding tenant with ID ${tenantId}: ${err}`);
+        }
+      }
+
+      console.log(`[mongodb] Final tenantId for query: ${tenantIdObj}`);
+
+      // Transform MongoDB documents to the format expected by the frontend
+      let results = [];
+      try {
+        // Get the query results
+        let query = ProductModel.find({ tenantId: tenantIdObj });
+
+        if (limit) {
+          query = query.limit(limit);
+        }
+
+        results = await query.exec();
+        console.log(`[mongodb] Products query returned ${results.length} results`);
+
+        if (results.length > 0) {
+          console.log(`[mongodb] Sample product: ${JSON.stringify(results[0])}`);
+        } else {
+          console.log(`[mongodb] No products found for tenant: ${tenantId}`);
+
+          // Debug: try fetching without tenant filter to see if any products exist
+          const allProducts = await ProductModel.find({}).limit(5).exec();
+          console.log(`[mongodb] Total products in collection (any tenant): ${allProducts.length}`);
+          if (allProducts.length > 0) {
+            console.log(`[mongodb] Sample product from any tenant: ${JSON.stringify(allProducts[0])}`);
+            console.log(`[mongodb] This product has tenantId: ${allProducts[0].tenantId}`);
+
+            // Try to find products with this tenant ID as a string
+            if (typeof tenantId === 'string' || typeof tenantId === 'number') {
+              const tenantIdStr = tenantId.toString();
+              console.log(`[mongodb] Trying to find products with tenantId as string: ${tenantIdStr}`);
+              const productsByString = await ProductModel.find({ tenantId: tenantIdStr }).limit(5).exec();
+              console.log(`[mongodb] Found ${productsByString.length} products with tenantId as string`);
+
+              if (productsByString.length > 0) {
+                // Use these results instead
+                results = productsByString;
+                console.log(`[mongodb] Using string-matched products instead`);
+              }
+            }
+          }
+        }
+      } catch (queryErr) {
+        console.error(`[mongodb] Error querying products: ${queryErr}`);
+      }
+
+      // Transform MongoDB documents to the format expected by the frontend
+      const transformedResults = results.map(product => {
+        // Convert Mongoose document to plain object
+        const productObj = product.toObject ? product.toObject() : product;
+
+        return {
+          id: productObj._id.toString(), // Convert ObjectId to string for the id field
+          _id: productObj._id.toString(), // Keep _id as string for compatibility
+          tenantId: productObj.tenantId.toString(), // Convert ObjectId to string
+          name: productObj.name,
+          description: productObj.description || '',
+          price: productObj.price,
+          costPrice: productObj.costPrice || 0,
+          category: productObj.category || '',
+          imageUrl: productObj.imageUrl || '',
+          supplierUrl: productObj.supplierUrl || '',
+          stockLevel: productObj.stockLevel,
+          isActive: productObj.isActive,
+          createdAt: productObj.createdAt.toISOString(),
+          updatedAt: productObj.updatedAt.toISOString()
+        };
+      });
+
+      console.log(`[mongodb] Transformed ${transformedResults.length} products for frontend`);
+      if (transformedResults.length > 0) {
+        console.log(`[mongodb] Sample transformed product: ${JSON.stringify(transformedResults[0])}`);
+      }
+
+      return transformedResults;
     } catch (error) {
       log(`Error listing products: ${error}`, "mongodb");
+      console.error('Full error:', error);
       return [];
     }
   }
 
   // Order methods
-  async getOrder(id: number, tenantId: number): Promise<any> {
+  async getOrder(id: string | number, tenantId: number | string): Promise<any> {
     try {
       const OrderModel = this.getModel<IOrder>('Order');
-      return await OrderModel.findOne({ _id: id, tenantId });
+
+      // Convert tenantId to ObjectId if it's a string and valid ObjectId
+      const tenantIdObj = mongoose.isValidObjectId(tenantId) ?
+                          mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                          tenantId;
+
+      console.log(`[mongodb] Getting order: ID=${id}, tenantId=${tenantIdObj}`);
+
+      // Check if the ID is a valid MongoDB ObjectId
+      if (!mongoose.isValidObjectId(id)) {
+        console.log(`[mongodb] Invalid ObjectId: ${id}`);
+        return null;
+      }
+
+      // Find the order
+      const order = await OrderModel.findOne({ _id: id, tenantId: tenantIdObj });
+
+      if (!order) {
+        console.log(`[mongodb] No order found with id ${id} and tenantId ${tenantIdObj}`);
+        return null;
+      }
+
+      // Transform the order for the frontend
+      const orderObj = order.toObject();
+      const transformedOrder = {
+        _id: orderObj._id.toString(),
+        id: orderObj._id.toString(),
+        orderNumber: orderObj.orderNumber,
+        customerName: orderObj.customerName,
+        customerEmail: orderObj.customerEmail,
+        amount: orderObj.amount,
+        status: orderObj.status,
+        createdAt: orderObj.createdAt.toISOString(),
+        updatedAt: orderObj.updatedAt.toISOString()
+      };
+
+      console.log(`[mongodb] Successfully retrieved order: ${JSON.stringify(transformedOrder)}`);
+      return transformedOrder;
     } catch (error) {
       log(`Error getting order: ${error}`, "mongodb");
+      console.error('Full error:', error);
       return undefined;
     }
   }
@@ -290,16 +574,54 @@ export class MongoStorage implements IStorage {
     }
   }
 
-  async updateOrderStatus(id: number, tenantId: number, status: string): Promise<any> {
+  async updateOrderStatus(id: string | number, tenantId: number | string, status: string): Promise<any> {
     try {
       const OrderModel = this.getModel<IOrder>('Order');
-      return await OrderModel.findOneAndUpdate(
-        { _id: id, tenantId },
+
+      // Convert tenantId to ObjectId if it's a string and valid ObjectId
+      const tenantIdObj = mongoose.isValidObjectId(tenantId) ?
+                          mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                          tenantId;
+
+      console.log(`[mongodb] Updating order status: ID=${id}, tenantId=${tenantIdObj}, status=${status}`);
+
+      // Check if the ID is a valid MongoDB ObjectId
+      if (!mongoose.isValidObjectId(id)) {
+        console.log(`[mongodb] Invalid ObjectId: ${id}`);
+        return null;
+      }
+
+      // Find and update the order
+      const updatedOrder = await OrderModel.findOneAndUpdate(
+        { _id: id, tenantId: tenantIdObj },
         { status, updatedAt: new Date() },
         { new: true }
       );
+
+      if (!updatedOrder) {
+        console.log(`[mongodb] No order found with id ${id} and tenantId ${tenantIdObj}`);
+        return null;
+      }
+
+      // Transform the order for the frontend
+      const orderObj = updatedOrder.toObject();
+      const transformedOrder = {
+        _id: orderObj._id.toString(),
+        id: orderObj._id.toString(),
+        orderNumber: orderObj.orderNumber,
+        customerName: orderObj.customerName,
+        customerEmail: orderObj.customerEmail,
+        amount: orderObj.amount,
+        status: orderObj.status,
+        createdAt: orderObj.createdAt.toISOString(),
+        updatedAt: orderObj.updatedAt.toISOString()
+      };
+
+      console.log(`[mongodb] Successfully updated order status: ${JSON.stringify(transformedOrder)}`);
+      return transformedOrder;
     } catch (error) {
       log(`Error updating order status: ${error}`, "mongodb");
+      console.error('Full error:', error);
       return undefined;
     }
   }
@@ -454,5 +776,142 @@ export class MongoStorage implements IStorage {
       log(`Error getting recent activity: ${error}`, "mongodb");
       return [];
     }
+  }
+
+  // Customer methods
+  async listCustomers(tenantId: number, page: number = 1, pageSize: number = 10): Promise<any[]> {
+    try {
+      // Get Customer model safely
+      const Customer = this.getModel('Customer');
+      // Convert tenantId to ObjectId if it's a string
+      const query = { tenantId: mongoose.isValidObjectId(tenantId) ?
+                              mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                              tenantId };
+
+      return await Customer.find(query)
+        .sort({ updatedAt: -1 })
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .exec();
+    } catch (error) {
+      log(`Error listing customers: ${error}`, "mongodb");
+      return [];
+    }
+  }
+
+  async countCustomers(tenantId: number): Promise<number> {
+    try {
+      // Get Customer model safely
+      const Customer = this.getModel('Customer');
+      // Convert tenantId to ObjectId if it's a string
+      const query = { tenantId: mongoose.isValidObjectId(tenantId) ?
+                              mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                              tenantId };
+
+      return await Customer.countDocuments(query);
+    } catch (error) {
+      log(`Error counting customers: ${error}`, "mongodb");
+      return 0;
+    }
+  }
+
+  async getCustomer(id: string, tenantId?: number): Promise<any> {
+    try {
+      // Get Customer model safely
+      const Customer = this.getModel('Customer');
+
+      // Create query - if tenantId is provided, include it in the query
+      const query: any = { _id: id };
+      if (tenantId !== undefined) {
+        query.tenantId = mongoose.isValidObjectId(tenantId) ?
+                        mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                        tenantId;
+      }
+
+      const customer = await Customer.findOne(query);
+
+      if (!customer) {
+        log(`No customer found with id ${id}`, "mongodb");
+        return null;
+      }
+
+      return customer;
+    } catch (error) {
+      log(`Error getting customer: ${error}`, "mongodb");
+      return null;
+    }
+  }
+
+  /**
+   * Get orders for a specific customer by customer ID
+   * @param customerId The MongoDB ID of the customer
+   * @param tenantId The tenant ID
+   * @returns Array of orders for the customer
+   */
+  async getOrdersByCustomer(customerId: string, tenantId: number): Promise<any[]> {
+    try {
+      console.log(`[mongodb] Getting orders for customer with ID: ${customerId} for tenant: ${tenantId}`);
+
+      // First get the customer to get their name and email
+      const customer = await this.getCustomer(customerId, tenantId);
+
+      if (!customer) {
+        console.log(`[mongodb] No customer found with id ${customerId}`);
+        return [];
+      }
+
+      // Then find orders by customer name and email
+      const OrderModel = this.getModel<IOrder>('Order');
+
+      // Convert tenantId to ObjectId if it's a string
+      const tenantIdObj = mongoose.isValidObjectId(tenantId) ?
+                          mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                          tenantId;
+
+      // Create query to find orders by customer name or email
+      const query: any = {
+        tenantId: tenantIdObj,
+        $or: [
+          { customerName: customer.name },
+          { customerEmail: customer.email }
+        ]
+      };
+
+      console.log(`[mongodb] Searching for orders with query:`, query);
+
+      // Find orders and sort by creation date (newest first)
+      const orders = await OrderModel.find(query)
+        .sort({ createdAt: -1 })
+        .exec();
+
+      console.log(`[mongodb] Found ${orders.length} orders for customer ${customer.name}`);
+
+      // Transform orders to match frontend expectations
+      const transformedOrders = orders.map(order => {
+        const orderObj = order.toObject();
+        return {
+          _id: orderObj._id.toString(),
+          id: orderObj._id.toString(),
+          orderNumber: orderObj.orderNumber,
+          customerName: orderObj.customerName,
+          customerEmail: orderObj.customerEmail,
+          amount: orderObj.amount,
+          status: orderObj.status,
+          createdAt: orderObj.createdAt.toISOString(),
+          date: orderObj.createdAt.toISOString()
+        };
+      });
+
+      return transformedOrders;
+    } catch (error) {
+      log(`Error getting orders by customer: ${error}`, "mongodb");
+      console.error('Full error:', error);
+      return [];
+    }
+  }
+
+  // Helper method to get the appropriate model
+  private getModel<T>(modelName: string): mongoose.Model<T> {
+    return mongoose.model(modelName) as mongoose.Model<T>;
   }
 }

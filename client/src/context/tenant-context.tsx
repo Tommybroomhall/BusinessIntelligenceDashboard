@@ -21,31 +21,50 @@ const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export function TenantProvider({ children }: { children: ReactNode }) {
   const [tenant, setTenantState] = useState<Tenant | null>(null);
-  
+
   // Fetch tenant data
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['/api/tenant'],
     retry: false,
-    enabled: false // We'll handle tenant loading differently in this demo
-  });
-  
-  useEffect(() => {
-    // For demo purposes, we'll simulate tenant loading
-    const loadTenant = () => {
+    enabled: false, // We'll enable it manually
+    onSuccess: (data) => {
+      if (data) {
+        setTenantState(data);
+        localStorage.setItem('tenant', JSON.stringify(data));
+      }
+    },
+    onError: () => {
+      // On error, try to use localStorage as fallback
       const storedTenant = localStorage.getItem('tenant');
       if (storedTenant) {
         setTenantState(JSON.parse(storedTenant));
       }
+    }
+  });
+
+  useEffect(() => {
+    // Try to fetch the tenant from the API
+    const loadTenant = async () => {
+      try {
+        await refetch();
+      } catch (error) {
+        console.error('Error loading tenant:', error);
+        // Fallback to localStorage
+        const storedTenant = localStorage.getItem('tenant');
+        if (storedTenant) {
+          setTenantState(JSON.parse(storedTenant));
+        }
+      }
     };
-    
+
     loadTenant();
-  }, []);
-  
+  }, [refetch]);
+
   const setTenant = (newTenant: Tenant) => {
     localStorage.setItem('tenant', JSON.stringify(newTenant));
     setTenantState(newTenant);
   };
-  
+
   return (
     <TenantContext.Provider
       value={{

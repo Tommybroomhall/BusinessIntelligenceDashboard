@@ -1,4 +1,19 @@
-import { leadStatusEnum, orderStatusEnum } from "@shared/schema";
+// Re-export types from shared/types.ts for backward compatibility
+export {
+  OrderStatus,
+  LeadStatus,
+  StockLevel,
+  CustomerStatus,
+  User,
+  Tenant,
+  Product,
+  Order,
+  OrderItem,
+  Lead,
+  TrafficData,
+  ActivityLog
+} from "@shared/types";
 
-export type OrderStatus = typeof orderStatusEnum.enumValues[number];
-export type LeadStatus = typeof leadStatusEnum.enumValues[number];
+// Import the IStorage interface from storage.ts
+import { IStorage } from "./storage";
+export { IStorage };
