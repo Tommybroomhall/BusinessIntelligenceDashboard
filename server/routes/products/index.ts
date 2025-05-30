@@ -50,6 +50,36 @@ router.get("/", ensureTenantAccess(), async (req: Request, res: Response) => {
   }
 });
 
+// Get all stock levels (specific path - must come before /:id)
+router.get("/stock-levels", ensureTenantAccess(), async (req: Request, res: Response) => {
+  try {
+    // Return all available stock level options
+    res.json(stockLevelEnum.enumValues);
+  } catch (error) {
+    console.error("Error fetching stock levels:", error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+});
+
+// Get products by stock level (specific path - must come before /:id)
+router.get("/by-stock-level/:stockLevel", ensureTenantAccess(), async (req: Request, res: Response) => {
+  try {
+    const storage = await getStorage();
+    const { stockLevel } = req.params;
+
+    // Validate stock level is valid
+    if (!stockLevelEnum.enumValues.includes(stockLevel as StockLevel)) {
+      return res.status(400).json({ message: "Invalid stock level" });
+    }
+
+    const products = await storage.getProductsByStockLevel(req.tenantId, stockLevel);
+    res.json(products);
+  } catch (error) {
+    console.error("Error listing products by stock level:", error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+});
+
 // Get product by ID
 router.get("/:id", ensureTenantAccess(), async (req: Request, res: Response) => {
   try {
@@ -92,7 +122,7 @@ router.post("/", ensureTenantAccess(), async (req: Request, res: Response) => {
     // Log activity
     await storage.logActivity({
       tenantId: req.tenantId,
-      userId: req.session.userId,
+      userId: req.user?._id || req.user?.id, // Use the authenticated user's ObjectId
       activityType: "product_created",
       description: `New product ${newProduct.name} created`,
       entityType: "product",
@@ -110,37 +140,7 @@ router.post("/", ensureTenantAccess(), async (req: Request, res: Response) => {
   }
 });
 
-// Get all stock levels
-router.get("/stock-levels", ensureTenantAccess(), async (req: Request, res: Response) => {
-  try {
-    // Return all available stock level options
-    res.json(stockLevelEnum.enumValues);
-  } catch (error) {
-    console.error("Error fetching stock levels:", error);
-    res.status(500).json({ message: "An error occurred" });
-  }
-});
-
-// Get products by stock level
-router.get("/by-stock-level/:stockLevel", ensureTenantAccess(), async (req: Request, res: Response) => {
-  try {
-    const storage = await getStorage();
-    const { stockLevel } = req.params;
-
-    // Validate stock level is valid
-    if (!stockLevelEnum.enumValues.includes(stockLevel as StockLevel)) {
-      return res.status(400).json({ message: "Invalid stock level" });
-    }
-
-    const products = await storage.getProductsByStockLevel(req.tenantId, stockLevel);
-    res.json(products);
-  } catch (error) {
-    console.error("Error listing products by stock level:", error);
-    res.status(500).json({ message: "An error occurred" });
-  }
-});
-
-// Update product stock level
+// Update product stock level (specific route - must come before general /:id route)
 router.patch("/:id/stock-level", ensureTenantAccess(), async (req: Request, res: Response) => {
   try {
     const storage = await getStorage();
@@ -163,7 +163,7 @@ router.patch("/:id/stock-level", ensureTenantAccess(), async (req: Request, res:
     // Log this activity
     await storage.logActivity({
       tenantId: req.tenantId,
-      userId: req.user.id,
+      userId: req.user?._id || req.user?.id, // Use the authenticated user's ObjectId
       activityType: "product_update",
       description: `Updated stock level of product "${product.name}" to ${stockLevel}`,
       entityType: "product",
@@ -175,6 +175,63 @@ router.patch("/:id/stock-level", ensureTenantAccess(), async (req: Request, res:
   } catch (error) {
     console.error("Error updating product stock level:", error);
     res.status(500).json({ message: "An error occurred" });
+  }
+});
+
+// Update product by ID (general update)
+router.patch("/:id", ensureTenantAccess(), async (req: Request, res: Response) => {
+  try {
+    const storage = await getStorage();
+    const productId = req.params.id;
+    
+    if (!productId) {
+      return res.status(400).json({ message: "Product ID is required" });
+    }
+
+    console.log(`[API] Updating product ${productId} for tenant: ${req.tenantId}`);
+    console.log(`[API] Update data:`, req.body);
+
+    // Get existing product first
+    const existingProduct = await storage.getProduct(productId, req.tenantId);
+    if (!existingProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Validate the update data (allow partial updates)
+    const updateSchema = insertProductSchema.partial().omit({ tenantId: true });
+    const validatedUpdate = updateSchema.parse(req.body);
+
+    // Update the product
+    const updatedProduct = await storage.updateProduct(productId, req.tenantId, validatedUpdate);
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Log activity
+    await storage.logActivity({
+      tenantId: req.tenantId,
+      userId: req.user?._id || req.user?.id,
+      activityType: "product_update",
+      description: `Updated product "${updatedProduct.name}"`,
+      entityType: "product",
+      entityId: productId,
+      metadata: { 
+        updated: Object.keys(validatedUpdate),
+        productId: productId
+      },
+    });
+
+    res.json(updatedProduct);
+  } catch (error) {
+    console.error("Error updating product:", error);
+    if (error.name === "ZodError") {
+      return res.status(400).json({ message: "Invalid data", errors: error.errors });
+    }
+    res.status(500).json({ 
+      message: "An error occurred while updating the product",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
   }
 });
 

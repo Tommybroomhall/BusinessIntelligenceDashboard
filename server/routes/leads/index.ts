@@ -53,7 +53,7 @@ router.post("/", ensureTenantAccess(), async (req: Request, res: Response) => {
     // Log activity
     await storage.logActivity({
       tenantId: req.tenantId,
-      userId: req.session.userId,
+      userId: req.user?._id || req.user?.id, // Use the authenticated user's ObjectId
       activityType: "lead_created",
       description: `New lead ${newLead.name} created`,
       entityType: "lead",
@@ -95,7 +95,7 @@ router.patch("/:id/status", ensureTenantAccess(), async (req: Request, res: Resp
     // Log activity
     await storage.logActivity({
       tenantId: req.tenantId,
-      userId: req.session.userId,
+      userId: req.user?._id || req.user?.id, // Use the authenticated user's ObjectId
       activityType: "lead_status_updated",
       description: `Lead ${updatedLead.name} status updated to ${status}`,
       entityType: "lead",

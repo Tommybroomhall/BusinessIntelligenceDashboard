@@ -13,32 +13,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
-  
+
   // Check if user is authenticated and redirect if not
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate('/login');
     }
   }, [isAuthenticated, isLoading, navigate]);
-  
+
   // Close mobile menu when clicking outside
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       const sidebar = document.getElementById('sidebar');
-      
+
       if (isMobileMenuOpen && sidebar && !sidebar.contains(target) && !target.closest('.mobile-menu-button')) {
         setIsMobileMenuOpen(false);
       }
     };
-    
+
     document.addEventListener('click', handleOutsideClick);
-    
+
     return () => {
       document.removeEventListener('click', handleOutsideClick);
     };
   }, [isMobileMenuOpen]);
-  
+
   // Show loading state
   if (isLoading) {
     return (
@@ -47,19 +47,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
     );
   }
-  
+
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar 
-        isMobileOpen={isMobileMenuOpen} 
-        setIsMobileOpen={setIsMobileMenuOpen} 
+      <Sidebar
+        isMobileOpen={isMobileMenuOpen}
+        setIsMobileOpen={setIsMobileMenuOpen}
       />
-      
+
       <main className="flex-1 overflow-y-auto bg-gray-50 pt-16 md:pt-0">
-        <Topbar 
+        <Topbar
           onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
-        
+
         {children}
       </main>
     </div>

@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { 
-  PieChart, 
-  Bell, 
-  ShoppingCart, 
-  Users, 
-  Package, 
-  LineChart, 
-  User, 
-  Settings, 
+import {
+  PieChart,
+  Bell,
+  ShoppingCart,
+  Users,
+  Package,
+  LineChart,
+  User,
+  Settings,
   LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useTenant } from "@/context/tenant-context";
+import { useAuth } from "@/context/auth-context";
 
 interface SidebarLinkProps {
   href: string;
@@ -25,14 +26,14 @@ interface SidebarLinkProps {
 const SidebarLink = ({ href, icon, children, badge }: SidebarLinkProps) => {
   const [location] = useLocation();
   const isActive = location === href;
-  
+
   return (
     <li>
       <Link href={href}>
         <div className={cn(
           "flex items-center px-3 py-2 text-sm font-medium rounded-md cursor-pointer",
-          isActive 
-            ? "bg-primary-50 text-primary" 
+          isActive
+            ? "bg-primary-50 text-primary"
             : "text-sidebar-foreground hover:bg-gray-100"
         )}>
           <span className="mr-2 w-5 h-5">{icon}</span>
@@ -55,7 +56,8 @@ interface SidebarProps {
 
 export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const { tenant } = useTenant();
-  
+  const { logout } = useAuth();
+
   return (
     <aside className={cn("sidebar bg-sidebar w-64", isMobileOpen && "open")}>
       {/* Logo Area */}
@@ -69,7 +71,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
           </span>
         </div>
       </div>
-      
+
       {/* Account section */}
       <div className="p-4 border-b border-sidebar-border">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -84,7 +86,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
           </SidebarLink>
         </ul>
       </div>
-      
+
       {/* Dashboards section */}
       <div className="p-4 border-b border-sidebar-border">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -105,7 +107,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
           </SidebarLink>
         </ul>
       </div>
-      
+
       {/* Pages section */}
       <div className="p-4 border-b border-sidebar-border">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -120,15 +122,16 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
           </SidebarLink>
         </ul>
       </div>
-      
+
       {/* Spacer */}
       <div className="flex-grow"></div>
-      
+
       {/* Logout */}
       <div className="p-4">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           className="flex w-full items-center justify-start px-3 py-2 text-sm font-medium rounded-md text-sidebar-foreground hover:bg-gray-100"
+          onClick={logout}
         >
           <LogOut size={18} className="mr-2" />
           Logout

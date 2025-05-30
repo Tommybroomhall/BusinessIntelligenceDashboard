@@ -999,23 +999,23 @@ export default function Settings() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {teamMembers.map((member) => (
+                      {teamMembers?.filter(member => member && member.id).map((member) => (
                         <TableRow key={member.id}>
                           <TableCell>
                             <div className="flex items-center">
                               <Avatar className="h-8 w-8 mr-2">
                                 <AvatarFallback>
-                                  {member.name.charAt(0)}
+                                  {member.name && member.name.length > 0 ? member.name.charAt(0).toUpperCase() : '?'}
                                 </AvatarFallback>
                               </Avatar>
-                              <span>{member.name}</span>
+                              <span>{member.name || 'Unknown User'}</span>
                             </div>
                           </TableCell>
-                          <TableCell>{member.email}</TableCell>
-                          <TableCell>{member.role}</TableCell>
+                          <TableCell>{member.email || 'No email'}</TableCell>
+                          <TableCell>{member.role || 'No role'}</TableCell>
                           <TableCell>
                             <Badge variant={member.status === "Active" ? "default" : "outline"}>
-                              {member.status}
+                              {member.status || 'Unknown'}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">

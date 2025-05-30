@@ -11,6 +11,7 @@ import { Button } from '../components/ui/button';
 import { formatCurrency } from '../lib/utils';
 import { AddProductDialog } from '../components/products/add-product-dialog-new';
 import { ProductDetailsDialog } from '../components/products/product-details-dialog';
+import { sanitizeImageUrl } from '@/lib/security';
 
 export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -160,22 +161,25 @@ export default function ProductsPage() {
                         >
                           <TableCell className="align-middle">
                             <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
-                              {product.imageUrl ? (
-                                <img
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  className="object-cover w-12 h-12 rounded-lg"
-                                  width={48}
-                                  height={48}
-                                />
-                              ) : (
-                                <div className="w-12 h-12 flex items-center justify-center text-gray-300 bg-gray-50 rounded-lg">
-                                  <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="w-6 h-6">
-                                    <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="2" fill="none" />
-                                    <path d="M8 15l2.5-3 2.5 3 3.5-4.5L21 19H3l5-7z" stroke="currentColor" strokeWidth="2" fill="none" />
-                                  </svg>
-                                </div>
-                              )}
+                              {(() => {
+                                const sanitizedUrl = sanitizeImageUrl(product.imageUrl);
+                                return sanitizedUrl ? (
+                                  <img
+                                    src={sanitizedUrl}
+                                    alt={product.name}
+                                    className="object-cover w-12 h-12 rounded-lg"
+                                    width={48}
+                                    height={48}
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 flex items-center justify-center text-gray-300 bg-gray-50 rounded-lg">
+                                    <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="w-6 h-6">
+                                      <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="2" fill="none" />
+                                      <path d="M8 15l2.5-3 2.5 3 3.5-4.5L21 19H3l5-7z" stroke="currentColor" strokeWidth="2" fill="none" />
+                                    </svg>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </TableCell>
                           <TableCell className="font-medium">{product.name}</TableCell>

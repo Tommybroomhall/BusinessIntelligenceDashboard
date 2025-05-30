@@ -11,7 +11,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -46,8 +45,8 @@ export default function Login() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "admin@businessdash.com",
-      password: "password123",
+      email: import.meta.env.VITE_DEFAULT_ADMIN_EMAIL || "admin@businessdash.com",
+      password: import.meta.env.VITE_DEFAULT_ADMIN_PASSWORD || "",
     },
   });
 
@@ -82,7 +81,7 @@ export default function Login() {
         // Register logic - in a real app, this would call a registration API
         toast({
           title: "Registration not implemented",
-          description: "Please use the login tab with admin@businessdash.com / password123",
+          description: `Please use the login tab with ${import.meta.env.VITE_DEFAULT_ADMIN_EMAIL || "admin@businessdash.com"} / ${import.meta.env.VITE_DEFAULT_ADMIN_PASSWORD || "password123"}`,
           variant: "destructive",
         });
 
@@ -196,60 +195,6 @@ export default function Login() {
             </TabsContent>
           </Tabs>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2"
-              >
-                <path d="M17.21 12c0-4.28-4.23-7.76-9.42-7.76a9.78 9.78 0 0 0-3.83.77" />
-                <path d="M12 12h.01" />
-                <path d="M16 12h.01" />
-                <path d="M20 12h.01" />
-                <path d="M2 17.7l2.28-1.9a9.5 9.5 0 0 0 2.7-5.2" />
-              </svg>
-              Google
-            </Button>
-            <Button variant="outline">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2"
-              >
-                <rect x="2" y="2" width="20" height="20" rx="2" ry="2" />
-                <path d="M18 7 M9 12h6" />
-                <path d="m11 9 3 3-3 3" />
-              </svg>
-              GitHub
-            </Button>
-          </div>
-        </CardFooter>
       </Card>
     </div>
   );

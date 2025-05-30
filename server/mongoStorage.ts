@@ -159,15 +159,41 @@ export class MongoStorage implements IStorage {
   }
 
   // Product methods
-  async getProduct(id: string | number): Promise<any> {
+  async getProduct(id: string | number, tenantId: string | number): Promise<any> {
     try {
-      console.log(`[mongodb] Getting product with id: ${id}`);
+      console.log(`[mongodb] Getting product with id: ${id} for tenant: ${tenantId}`);
       const ProductModel = this.getModel<IProduct>('Product');
 
-      const product = await ProductModel.findById(id);
+      let query: any = { _id: id };
+      
+      // Convert tenantId to ObjectId if needed
+      let tenantIdObj;
+      try {
+        if (typeof tenantId === 'string' && mongoose.Types.ObjectId.isValid(tenantId)) {
+          tenantIdObj = new mongoose.Types.ObjectId(tenantId);
+        } else if (typeof tenantId === 'number') {
+          // For numeric IDs, we need to find the corresponding tenant first
+          const tenant = await this.getModel<ITenant>('Tenant').findOne({ id: tenantId });
+          if (tenant) {
+            tenantIdObj = tenant._id;
+          } else {
+            tenantIdObj = tenantId;
+          }
+        } else {
+          tenantIdObj = tenantId;
+        }
+      } catch (err) {
+        console.error(`[mongodb] Failed to convert tenantId: ${tenantId} - ${err}`);
+        tenantIdObj = tenantId;
+      }
+      
+      query.tenantId = tenantIdObj;
+      console.log(`[mongodb] Using query with tenantId filter:`, query);
+
+      const product = await ProductModel.findOne(query);
 
       if (!product) {
-        console.log(`[mongodb] No product found with id ${id}`);
+        console.log(`[mongodb] No product found with id ${id} and tenantId ${tenantId}`);
         return null;
       }
 
@@ -209,16 +235,67 @@ export class MongoStorage implements IStorage {
     }
   }
 
-  async updateProduct(id: number, productData: any): Promise<any> {
+  async updateProduct(id: string | number, tenantId: string | number, productData: Partial<Product>): Promise<any> {
     try {
+      console.log(`[mongodb] Updating product ${id} for tenant ${tenantId}`);
       const ProductModel = this.getModel<IProduct>('Product');
-      return await ProductModel.findByIdAndUpdate(
-        id,
+
+      // Convert tenantId to ObjectId if needed
+      let tenantIdObj;
+      try {
+        if (typeof tenantId === 'string' && mongoose.Types.ObjectId.isValid(tenantId)) {
+          tenantIdObj = new mongoose.Types.ObjectId(tenantId);
+        } else if (typeof tenantId === 'number') {
+          // For numeric IDs, we need to find the corresponding tenant first
+          const tenant = await this.getModel<ITenant>('Tenant').findOne({ id: tenantId });
+          if (tenant) {
+            tenantIdObj = tenant._id;
+          } else {
+            tenantIdObj = tenantId;
+          }
+        } else {
+          tenantIdObj = tenantId;
+        }
+      } catch (err) {
+        console.error(`[mongodb] Failed to convert tenantId: ${tenantId} - ${err}`);
+        tenantIdObj = tenantId;
+      }
+
+      // Find and update the product
+      const product = await ProductModel.findOneAndUpdate(
+        { _id: id, tenantId: tenantIdObj },
         { ...productData, updatedAt: new Date() },
         { new: true }
       );
+
+      if (!product) {
+        console.log(`[mongodb] No product found with id ${id} and tenantId ${tenantId}`);
+        return null;
+      }
+
+      // Transform the product to match frontend expectations
+      const productObj = product.toObject();
+      const transformedProduct = {
+        id: productObj._id.toString(),
+        _id: productObj._id.toString(),
+        tenantId: productObj.tenantId.toString(),
+        name: productObj.name,
+        description: productObj.description || '',
+        price: productObj.price,
+        costPrice: productObj.costPrice || 0,
+        category: productObj.category || '',
+        imageUrl: productObj.imageUrl || '',
+        supplierUrl: productObj.supplierUrl || '',
+        stockLevel: productObj.stockLevel,
+        isActive: productObj.isActive,
+        createdAt: productObj.createdAt.toISOString(),
+        updatedAt: productObj.updatedAt.toISOString()
+      };
+
+      return transformedProduct;
     } catch (error) {
       log(`Error updating product: ${error}`, "mongodb");
+      console.error('Full error:', error);
       return undefined;
     }
   }

@@ -135,7 +135,7 @@ router.post('/', ensureTenantAccess(), async (req: Request, res: Response) => {
     // Log activity
     await storage.logActivity({
       tenantId: req.tenantId,
-      userId: req.session.userId,
+      userId: req.user?._id || req.user?.id, // Use the authenticated user's ObjectId
       activityType: "order_created",
       description: `New order ${newOrder.orderNumber} created`,
       entityType: "order",
@@ -179,7 +179,7 @@ router.patch('/:id/status', ensureTenantAccess(), async (req: Request, res: Resp
     // Log activity
     await storage.logActivity({
       tenantId: req.tenantId,
-      userId: req.session.userId,
+      userId: req.user?._id || req.user?.id, // Use the authenticated user's ObjectId
       activityType: "order_status_updated",
       description: `Order ${updatedOrder.orderNumber} status updated to ${status}`,
       entityType: "order",

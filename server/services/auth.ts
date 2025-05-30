@@ -28,15 +28,31 @@ export const generateToken = (user: Partial<IUser>) => {
  */
 export const setTokenCookie = (res: Response, token: string) => {
   // Calculate expiry time in milliseconds for cookie
-  const expiryTime = JWT_EXPIRES_IN.includes('h') 
+  const expiryTime = JWT_EXPIRES_IN.includes('h')
     ? parseInt(JWT_EXPIRES_IN) * 60 * 60 * 1000 // hours to ms
     : 24 * 60 * 60 * 1000; // default 24 hours
-  
+
   res.cookie('token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: expiryTime
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Use 'lax' in development for cross-origin
+    maxAge: expiryTime,
+    path: '/', // Ensure cookie is available for all paths
+    // Don't set domain in development to allow localhost
+  });
+};
+
+/**
+ * Clear JWT token cookie
+ */
+export const clearTokenCookie = (res: Response) => {
+  res.cookie('token', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    maxAge: 0, // Expire immediately
+    expires: new Date(0), // Set expiry date to past
+    path: '/', // Ensure cookie is cleared for all paths
   });
 };
 
@@ -46,7 +62,17 @@ export const setTokenCookie = (res: Response, token: string) => {
 export const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
   // Get token from cookies
   const token = req.cookies?.token;
-  
+
+  // Debug logging for development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('JWT Auth Debug:', {
+      hasCookies: !!req.cookies,
+      cookieKeys: req.cookies ? Object.keys(req.cookies) : [],
+      hasToken: !!token,
+      tokenPreview: token ? `${token.substring(0, 20)}...` : 'none'
+    });
+  }
+
   if (!token) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -54,29 +80,18 @@ export const authenticateJWT = (req: Request, res: Response, next: NextFunction)
   try {
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     // Add user data to request object
     req.user = decoded;
-    
+
     next();
   } catch (error) {
     // Check if token is expired
     if (error instanceof jwt.TokenExpiredError) {
       return res.status(401).json({ message: 'Token expired' });
     }
-    
+
     return res.status(401).json({ message: 'Invalid token' });
   }
 };
 
-/**
- * Clear JWT cookie on logout
- */
-export const clearTokenCookie = (res: Response) => {
-  res.cookie('token', '', {
-    httpOnly: true,
-    expires: new Date(0),
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict'
-  });
-}; 

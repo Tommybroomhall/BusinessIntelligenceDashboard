@@ -22,10 +22,17 @@ router.get("/", authenticateJWT, ensureTenantAccess(), async (req: Request, res:
   try {
     const storage = await getStorage();
     const users = await storage.listUsers(req.tenantId);
-    // Remove passwordHash from users
+    // Remove passwordHash from users and transform MongoDB documents to plain objects
     const sanitizedUsers = users.map(user => {
-      const { passwordHash, ...userWithoutPassword } = user;
-      return userWithoutPassword;
+      // Handle both plain objects and Mongoose documents
+      const userData = user._doc || user;
+      const { passwordHash, ...userWithoutPassword } = userData;
+
+      // Ensure we have an id field for the frontend
+      return {
+        ...userWithoutPassword,
+        id: userWithoutPassword._id || userWithoutPassword.id
+      };
     });
     res.json(sanitizedUsers);
   } catch (error) {

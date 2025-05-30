@@ -15,7 +15,6 @@ router.get("/", ensureTenantAccess(), async (req: Request, res: Response) => {
     const revenue = await storage.calculateRevenue(req.tenantId, fromDate, toDate);
     const orderCount = await storage.countOrders(req.tenantId, fromDate, toDate);
     const averageOrderValue = await storage.calculateAverageOrderValue(req.tenantId, fromDate, toDate);
-    const leadCount = await storage.countLeads(req.tenantId, fromDate, toDate);
 
     // Get traffic data
     const trafficBySource = await storage.getTrafficBySource(req.tenantId);
@@ -32,8 +31,7 @@ router.get("/", ensureTenantAccess(), async (req: Request, res: Response) => {
       kpi: {
         revenue,
         orderCount,
-        averageOrderValue,
-        leadCount
+        averageOrderValue
       },
       traffic: {
         bySource: trafficBySource,

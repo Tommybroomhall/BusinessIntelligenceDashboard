@@ -24,18 +24,30 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   const [, navigate] = useLocation();
 
   useEffect(() => {
+    // Only redirect if we're not loading AND not authenticated
     if (!isLoading && !isAuthenticated) {
-      // Redirect to login if not authenticated
       navigate('/login');
     }
   }, [isAuthenticated, isLoading, navigate]);
 
-  // Show loading or the component
+  // Show loading spinner while checking authentication
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-sm text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
   }
 
-  return isAuthenticated ? <Component /> : null;
+  // Only render component if authenticated
+  if (!isAuthenticated) {
+    return null; // Will redirect via useEffect
+  }
+
+  return <Component />;
 }
 
 function Router() {

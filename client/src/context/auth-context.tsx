@@ -24,44 +24,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [, navigate] = useLocation();
 
   // Check if the user is authenticated
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch, error } = useQuery({
     queryKey: ['/api/auth/me'],
     queryFn: async () => {
       const response = await fetch('/api/auth/me', {
         credentials: 'include', // Ensure cookies (including JWT) are sent
       });
-      
+
       if (!response.ok) {
-        throw new Error('Authentication failed');
+        // If unauthorized, clear any stored user data
+        if (response.status === 401) {
+          localStorage.removeItem('user');
+          localStorage.removeItem('tenant');
+        }
+        throw new Error(`Authentication failed: ${response.status}`);
       }
-      
+
       return response.json();
     },
-    retry: false,
-    enabled: true, // Enable by default to check auth status on load
-    onSuccess: (data) => {
-      console.log('Auth check successful:', data);
-      if (data && data.user) {
-        setUser(data.user);
-        // Also store in localStorage as backup
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        // Store tenant data if available
-        if (data.tenant) {
-          localStorage.setItem('tenant', JSON.stringify(data.tenant));
-        }
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 (unauthorized) errors
+      if (error?.message?.includes('401')) {
+        return false;
       }
+      // Retry up to 2 times for other errors
+      return failureCount < 2;
     },
-    onError: (error) => {
+    enabled: true, // Enable by default to check auth status on load
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes (renamed from cacheTime)
+  });
+
+  // Handle authentication state changes using useEffect (modern React Query pattern)
+  useEffect(() => {
+    console.log('Auth state update:', {
+      hasData: !!data,
+      hasUser: !!(data?.user),
+      hasError: !!error,
+      isLoading,
+      errorMessage: error?.message
+    });
+
+    if (data && data.user) {
+      console.log('Auth check successful:', data);
+      setUser(data.user);
+      // Store in localStorage for persistence
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      // Store tenant data if available
+      if (data.tenant) {
+        localStorage.setItem('tenant', JSON.stringify(data.tenant));
+      }
+    } else if (error) {
       console.log('Auth check failed:', error);
-      // On error, try to use localStorage as fallback
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        console.log('Using stored user from localStorage');
-        setUser(JSON.parse(storedUser));
+      // Clear user state on authentication failure
+      setUser(null);
+      // Clear stored data if it's an auth error
+      if (error?.message?.includes('401')) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('tenant');
       }
     }
-  });
+  }, [data, error, isLoading]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -121,11 +145,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Calculate authentication status properly
+  // Use data directly from React Query if available, otherwise fall back to user state
+  const currentUser = data?.user || user;
+  const storedUser = localStorage.getItem('user');
+
+  // Consider authenticated if:
+  // 1. We have current user data (from query or state) OR
+  // 2. We're still loading and have stored user data
+  const isAuthenticated = !!currentUser || (isLoading && !!storedUser);
+
+  // Debug logging (can be removed in production)
+  // console.log('Auth calculation:', {
+  //   isLoading,
+  //   hasQueryData: !!data?.user,
+  //   hasUser: !!user,
+  //   hasCurrentUser: !!currentUser,
+  //   hasStoredUser: !!storedUser,
+  //   isAuthenticated
+  // });
+
   return (
     <AuthContext.Provider
       value={{
-        user,
-        isAuthenticated: !!user,
+        user: currentUser,
+        isAuthenticated,
         isLoading,
         login,
         logout,
