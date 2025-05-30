@@ -755,6 +755,148 @@ export class MongoStorage implements IStorage {
     }
   }
 
+  async getDailySalesBreakdown(tenantId: number, fromDate: Date, toDate: Date): Promise<Array<{ date: string; revenue: number; orderCount: number }>> {
+    try {
+      const OrderModel = this.getModel<IOrder>('Order');
+      const query: any = {
+        tenantId,
+        status: { $nin: ['canceled', 'refunded'] },
+        createdAt: {
+          $gte: fromDate,
+          $lte: toDate
+        }
+      };
+
+      const result = await OrderModel.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }
+            },
+            revenue: { $sum: "$amount" },
+            orderCount: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } },
+        {
+          $project: {
+            date: "$_id",
+            revenue: 1,
+            orderCount: 1,
+            _id: 0
+          }
+        }
+      ]);
+
+      return result;
+    } catch (error) {
+      log(`Error getting daily sales breakdown: ${error}`, "mongodb");
+      return [];
+    }
+  }
+
+  async getPopularProductsWithSales(tenantId: number, limit?: number, fromDate?: Date, toDate?: Date): Promise<Array<{ id: string; name: string; category: string; price: number; imageUrl: string; sold: number; earnings: number }>> {
+    try {
+      const OrderModel = this.getModel<IOrder>('Order');
+      const OrderItemModel = this.getModel<IOrderItem>('OrderItem');
+      const ProductModel = this.getModel<IProduct>('Product');
+      
+      const actualLimit = limit ?? 5;
+      
+      // Build the date filter for orders
+      const orderQuery: any = {
+        tenantId,
+        status: { $nin: ['canceled', 'refunded'] }
+      };
+      
+      if (fromDate || toDate) {
+        orderQuery.createdAt = {};
+        if (fromDate) orderQuery.createdAt.$gte = fromDate;
+        if (toDate) orderQuery.createdAt.$lte = toDate;
+      }
+      
+      // Get all orders in the date range
+      const orders = await OrderModel.find(orderQuery).select('_id').exec();
+      const orderIds = orders.map(order => order._id);
+      
+      if (orderIds.length === 0) {
+        log(`No orders found for tenant ${tenantId} in the specified date range`, "mongodb");
+        return [];
+      }
+      
+      // Aggregate order items to get sales data per product
+      const salesAggregation = await OrderItemModel.aggregate([
+        {
+          $match: {
+            orderId: { $in: orderIds }
+          }
+        },
+        {
+          $group: {
+            _id: "$productId",
+            totalQuantity: { $sum: "$quantity" },
+            totalEarnings: { $sum: { $multiply: ["$quantity", "$price"] } }
+          }
+        },
+        {
+          $sort: { totalQuantity: -1 }
+        },
+        {
+          $limit: actualLimit
+        }
+      ]);
+      
+      if (salesAggregation.length === 0) {
+        log(`No order items found for orders in the specified date range`, "mongodb");
+        return [];
+      }
+      
+      // Get product details for the top selling products
+      const productIds = salesAggregation.map(item => item._id);
+      const products = await ProductModel.find({
+        _id: { $in: productIds },
+        tenantId,
+        isActive: true
+      }).exec();
+      
+      // Create a map of product sales data
+      const salesMap = new Map();
+      salesAggregation.forEach(item => {
+        salesMap.set(item._id.toString(), {
+          sold: item.totalQuantity,
+          earnings: Math.round(item.totalEarnings * 100) / 100
+        });
+      });
+      
+      // Transform products to the expected format
+      const result = products.map(product => {
+        const productObj = product.toObject();
+        const salesData = salesMap.get(productObj._id.toString()) || { sold: 0, earnings: 0 };
+        
+        return {
+          id: productObj._id.toString(),
+          name: productObj.name,
+          category: productObj.category || 'Uncategorized',
+          price: productObj.price,
+          imageUrl: productObj.imageUrl || 'https://placehold.co/80x80?text=No+Image',
+          sold: salesData.sold,
+          earnings: salesData.earnings
+        };
+      })
+      // Sort by sales volume (sold quantity) in descending order
+      .sort((a, b) => b.sold - a.sold);
+      
+      console.log(`[mongodb] Found ${result.length} popular products with sales data`);
+      return result;
+      
+    } catch (error) {
+      log(`Error getting popular products with sales: ${error}`, "mongodb");
+      console.error('Full error:', error);
+      return [];
+    }
+  }
+
   // Traffic data methods
   async listTrafficData(tenantId: number, fromDate?: Date, toDate?: Date): Promise<any[]> {
     try {

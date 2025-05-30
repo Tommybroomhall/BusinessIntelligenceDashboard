@@ -98,7 +98,8 @@ router.get('/:id/items', ensureTenantAccess(), async (req: Request, res: Respons
       const product = await ProductModel.findById(item.productId).exec();
       populatedItems.push({
         ...item.toObject(),
-        productName: product ? product.name : 'Unknown Product'
+        productName: product ? product.name : 'Unknown Product',
+        productImageUrl: product ? product.imageUrl : null
       });
     }
 

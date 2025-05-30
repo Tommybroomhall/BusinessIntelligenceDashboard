@@ -15,6 +15,7 @@ import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 import { TenantProvider } from "@/context/tenant-context";
+import { CurrencyProvider } from "@/context/CurrencyContext";
 import { useEffect } from "react";
 import { initVercelAnalytics, initGA } from "./lib/analytics";
 import { useAnalytics } from "./hooks/use-analytics";
@@ -122,10 +123,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TenantProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <CurrencyProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </CurrencyProvider>
         </TenantProvider>
       </AuthProvider>
     </QueryClientProvider>

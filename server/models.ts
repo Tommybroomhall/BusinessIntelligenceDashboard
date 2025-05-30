@@ -7,6 +7,15 @@ export const OrderStatuses = ['pending', 'paid', 'processing', 'shipped', 'deliv
 export const StockLevels = ['none', 'low', 'good', 'high'] as const;
 export const CustomerStatuses = ['active', 'inactive'] as const;
 
+// Define supported currencies
+export const SupportedCurrencies = [
+  'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'KRW',
+  'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'HRK', 'RUB',
+  'TRY', 'BRL', 'MXN', 'ARS', 'CLP', 'COP', 'PEN', 'UYU', 'ZAR', 'EGP',
+  'MAD', 'NGN', 'KES', 'GHS', 'ILS', 'SAR', 'AED', 'QAR', 'KWD', 'BHD',
+  'THB', 'SGD', 'MYR', 'IDR', 'PHP', 'VND', 'HKD', 'TWD', 'NZD'
+] as const;
+
 // Define interfaces for our documents
 export interface ITenant extends Document {
   name: string;
@@ -18,6 +27,9 @@ export interface ITenant extends Document {
   updatedAt: Date;
   logoUrl?: string;
   primaryColor: string;
+  currencyCode: typeof SupportedCurrencies[number];
+  currencySymbol: string;
+  currencyLocale: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   stripeSecretKey?: string;
@@ -117,6 +129,9 @@ const TenantSchema = new Schema<ITenant>({
   updatedAt: { type: Date, default: Date.now },
   logoUrl: String,
   primaryColor: { type: String, default: '#0ea5e9' },
+  currencyCode: { type: String, enum: SupportedCurrencies, default: 'GBP' },
+  currencySymbol: { type: String, default: '£' },
+  currencyLocale: { type: String, default: 'en-GB' },
   stripeCustomerId: String,
   stripeSubscriptionId: String,
   stripeSecretKey: String,

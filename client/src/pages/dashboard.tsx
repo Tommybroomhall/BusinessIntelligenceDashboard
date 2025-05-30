@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { KpiCard } from "@/components/dashboard/kpi-card";
+import { SalesOverview } from "@/components/dashboard/sales-overview";
 import { SalesChart } from "@/components/dashboard/sales-chart";
 import { TrafficChannelsChart } from "@/components/dashboard/traffic-channels-chart";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { PopularProducts } from "@/components/dashboard/popular-products";
 import { StockLevelWidget } from "@/components/dashboard/stock-level-widget";
-import {
-  DollarSign,
-  ShoppingCart,
-  BarChart2
-} from "lucide-react";
+import { useDashboardData, useDashboardComponent } from "@/hooks/use-dashboard-data";
+import { apiRequest } from "@/lib/queryClient";
+import { Wifi, WifiOff, Pause, Clock, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+import { DashboardSkeleton, DashboardRefreshingSkeleton } from "@/components/dashboard/dashboard-skeleton";
 
 export default function Dashboard() {
   const [dateRange, setDateRange] = useState({
@@ -18,17 +17,52 @@ export default function Dashboard() {
     to: new Date()
   });
 
-  // Fetch dashboard data
-  const { data, isLoading } = useQuery({
-    queryKey: ['/api/dashboard', dateRange.from?.toISOString(), dateRange.to?.toISOString()],
-    staleTime: 60 * 1000, // 1 minute
+  // Use the new dashboard data hook with caching and auto-refresh
+  const {
+    data,
+    isLoading,
+    isFromCache,
+    isFresh,
+    error,
+    lastUpdated,
+    isRefreshingInBackground,
+    isAutoRefreshEnabled,
+    isUserIdle,
+    nextRefreshIn,
+    nextRefreshFormatted,
+    retryCount,
+    isRetrying,
+    isOnline,
+    maxRetries,
+  } = useDashboardData({
+    dateRange,
+    autoRefreshInterval: 5 * 60 * 1000, // 5 minutes
+    pauseOnUserIdle: true,
   });
 
-  // Fetch orders data for sales chart
-  const { data: ordersData, isLoading: isOrdersLoading } = useQuery({
-    queryKey: ['/api/orders'],
-    staleTime: 60 * 1000, // 1 minute
-  });
+  // Fetch orders data for sales chart with caching and auto-refresh
+  const { data: ordersData, isLoading: isOrdersLoading } = useDashboardComponent(
+    '/api/orders',
+    async () => {
+      const response = await apiRequest('GET', '/api/orders');
+      return response.json();
+    },
+    {
+      autoRefreshInterval: isAutoRefreshEnabled && !isUserIdle ? 5 * 60 * 1000 : false, // 5 minutes
+    }
+  );
+
+  // Fetch popular products with sales data with caching and auto-refresh
+  const { data: popularProductsData, isLoading: isProductsLoading } = useDashboardComponent(
+    '/api/dashboard/popular-products',
+    async () => {
+      const response = await apiRequest('GET', '/api/dashboard/popular-products');
+      return response.json();
+    },
+    {
+      autoRefreshInterval: isAutoRefreshEnabled && !isUserIdle ? 5 * 60 * 1000 : false, // 5 minutes
+    }
+  );
 
   // Process orders data for sales chart
   const salesChartData = React.useMemo(() => {
@@ -134,57 +168,144 @@ export default function Dashboard() {
     });
   }, [data]);
 
-  // Process popular products data from API
-  const popularProductsData = React.useMemo(() => {
-    if (!data?.popularProducts || data.popularProducts.length === 0) {
+  // Process popular products data from API with sales data
+  const processedPopularProducts = React.useMemo(() => {
+    if (!popularProductsData || popularProductsData.length === 0) {
       // Return null if no product data to fail loudly
       return null;
     }
 
-    // Map API data to product format
-    return data.popularProducts.map(product => ({
-      id: product._id || product.id || Math.random().toString(36).substring(2, 9),
+    // The new API already returns products with sales data (sold and earnings)
+    return popularProductsData.map(product => ({
+      id: product.id,
       name: product.name,
       category: product.category || "Uncategorized",
       price: Number(product.price),
       imageUrl: product.imageUrl || "https://placehold.co/80x80?text=No+Image",
-      sold: 0, // This data might not be available in the API
-      earnings: 0 // This data might not be available in the API
+      sold: product.sold || 0,
+      earnings: product.earnings || 0
     }));
-  }, [data]);
+  }, [popularProductsData]);
+
+  // Show skeleton when loading and no cached data available
+  if (isLoading && !data) {
+    return <DashboardSkeleton />;
+  }
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        <KpiCard
-          title="Total Revenue"
-          value={`$${isLoading ? '0.00' : (data?.kpi?.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          icon={<DollarSign className="h-5 w-5 text-primary-600" />}
-          trendValue={8.2} // This could be calculated if we have historical data
-          trendDirection="up"
-          iconBgClass="bg-primary-100"
-        />
+    <>
+      {/* Background refresh indicator */}
+      {isRefreshingInBackground && <DashboardRefreshingSkeleton />}
 
-        <KpiCard
-          title="Total Orders"
-          value={isLoading ? '0' : (data?.kpi?.orderCount || 0).toString()}
-          icon={<ShoppingCart className="h-5 w-5 text-secondary-600" />}
-          trendValue={4.5} // This could be calculated if we have historical data
-          trendDirection="up"
-          iconBgClass="bg-secondary-100"
-          iconColor="text-secondary-600"
-        />
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
+      {/* Cache Status and Auto-refresh Status */}
+      <div className="mb-4">
+        <div className="flex items-center space-x-3">
+          {/* Cache Status Indicator */}
+          <div className="flex items-center space-x-2">
+            {!isOnline ? (
+              <div className="flex items-center space-x-1 text-sm text-red-600">
+                <WifiOff className="h-4 w-4" />
+                <span>Offline</span>
+              </div>
+            ) : isFromCache ? (
+              <div className="flex items-center space-x-1 text-sm text-gray-600">
+                <WifiOff className="h-4 w-4" />
+                <span>Cached Data</span>
+                {!isFresh && (
+                  <span className="text-amber-600">(Refreshing...)</span>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center space-x-1 text-sm text-green-600">
+                <Wifi className="h-4 w-4" />
+                <span>Live Data</span>
+              </div>
+            )}
+          </div>
 
-        <KpiCard
-          title="Avg Order Value"
-          value={`$${isLoading ? '0.00' : (data?.kpi?.averageOrderValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          icon={<BarChart2 className="h-5 w-5 text-accent-600" />}
-          trendValue={1.8} // This could be calculated if we have historical data
-          trendDirection="down"
-          iconBgClass="bg-accent-100"
-          iconColor="text-accent-600"
-        />
+          {/* Last Updated */}
+          {lastUpdated && (
+            <div className="text-xs text-gray-500">
+              Updated: {lastUpdated.toLocaleTimeString()}
+            </div>
+          )}
+
+          {/* Auto-refresh Status */}
+          {isAutoRefreshEnabled && !isUserIdle && nextRefreshIn > 0 && (
+            <div className="flex items-center space-x-1 text-xs text-blue-600">
+              <Clock className="h-3 w-3" />
+              <span>Next refresh: {nextRefreshFormatted}</span>
+            </div>
+          )}
+
+          {/* Retry Status Indicator */}
+          {isRetrying && retryCount > 0 && (
+            <div className="flex items-center space-x-1 text-xs text-orange-600">
+              <AlertTriangle className="h-3 w-3" />
+              <span>Retrying... ({retryCount}/{maxRetries})</span>
+            </div>
+          )}
+
+          {/* Error Recovery Indicator */}
+          {retryCount > 0 && !isRetrying && !error && (
+            <div className="flex items-center space-x-1 text-xs text-green-600">
+              <CheckCircle className="h-3 w-3" />
+              <span>Connection restored</span>
+            </div>
+          )}
+
+          {/* User Idle Indicator */}
+          {isUserIdle && (
+            <div className="flex items-center space-x-1 text-xs text-orange-600">
+              <Pause className="h-3 w-3" />
+              <span>Auto-refresh paused (idle)</span>
+            </div>
+          )}
+
+          {/* Background Refresh Indicator */}
+          {isRefreshingInBackground && (
+            <div className="flex items-center space-x-1 text-xs text-blue-600">
+              <RefreshCw className="h-3 w-3 animate-spin" />
+              <span>Updating...</span>
+            </div>
+          )}
+        </div>
+
+
+      </div>
+
+      {/* Error Display */}
+      {error && !data && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-md p-4">
+          <div className="flex items-start space-x-2">
+            <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium">
+                {!isOnline ? "No internet connection" : "Error loading dashboard data"}
+              </p>
+              <p className="text-sm mt-1">{error.message}</p>
+              {retryCount > 0 && (
+                <p className="text-sm mt-2">
+                  {isRetrying
+                    ? `Retrying... (attempt ${retryCount}/${maxRetries})`
+                    : `Failed after ${retryCount} attempts. Auto-refresh will continue when connection is restored.`
+                  }
+                </p>
+              )}
+              {!isOnline && (
+                <p className="text-sm mt-2 text-orange-700">
+                  Dashboard will automatically refresh when internet connection is restored.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sales Overview with Time Frame Filtering */}
+      <div className="mb-6">
+        <SalesOverview />
       </div>
 
       {/* Charts Row */}
@@ -221,11 +342,13 @@ export default function Dashboard() {
           )}
         </div>
         <div className="lg:col-span-2">
-          {popularProductsData ? (
-            <PopularProducts products={popularProductsData} />
+          {isProductsLoading ? (
+            <PopularProducts products={[]} isLoading={true} />
+          ) : processedPopularProducts ? (
+            <PopularProducts products={processedPopularProducts} />
           ) : (
             <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 flex items-center justify-center h-64">
-              <p className="font-medium">No product data available from MongoDB</p>
+              <p className="font-medium">No product sales data available from MongoDB</p>
             </div>
           )}
         </div>
@@ -234,5 +357,6 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+    </>
   );
 }

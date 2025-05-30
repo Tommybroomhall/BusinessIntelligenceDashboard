@@ -33,6 +33,8 @@ import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useTenant } from "@/context/tenant-context";
+import { useCurrency } from "@/context/CurrencyContext";
+import { SupportedCurrencies } from "@/shared/types";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertCircle,
@@ -66,7 +68,39 @@ import {
 
 export default function Settings() {
   const { tenant } = useTenant();
+  const { currencySettings, refreshCurrency } = useCurrency();
   const { toast } = useToast();
+
+  // Currency data mapping
+  const currencyData = [
+    { code: "GBP", symbol: "£", locale: "en-GB", name: "British Pound Sterling" },
+    { code: "USD", symbol: "$", locale: "en-US", name: "US Dollar" },
+    { code: "EUR", symbol: "€", locale: "en-IE", name: "Euro" },
+    { code: "JPY", symbol: "¥", locale: "ja-JP", name: "Japanese Yen" },
+    { code: "AUD", symbol: "A$", locale: "en-AU", name: "Australian Dollar" },
+    { code: "CAD", symbol: "C$", locale: "en-CA", name: "Canadian Dollar" },
+    { code: "CHF", symbol: "CHF", locale: "de-CH", name: "Swiss Franc" },
+    { code: "CNY", symbol: "¥", locale: "zh-CN", name: "Chinese Yuan" },
+    { code: "INR", symbol: "₹", locale: "en-IN", name: "Indian Rupee" },
+    { code: "KRW", symbol: "₩", locale: "ko-KR", name: "South Korean Won" },
+    { code: "SEK", symbol: "kr", locale: "sv-SE", name: "Swedish Krona" },
+    { code: "NOK", symbol: "kr", locale: "nb-NO", name: "Norwegian Krone" },
+    { code: "DKK", symbol: "kr", locale: "da-DK", name: "Danish Krone" },
+    { code: "PLN", symbol: "zł", locale: "pl-PL", name: "Polish Złoty" },
+    { code: "CZK", symbol: "Kč", locale: "cs-CZ", name: "Czech Koruna" },
+    { code: "HUF", symbol: "Ft", locale: "hu-HU", name: "Hungarian Forint" },
+    { code: "RUB", symbol: "₽", locale: "ru-RU", name: "Russian Ruble" },
+    { code: "TRY", symbol: "₺", locale: "tr-TR", name: "Turkish Lira" },
+    { code: "BRL", symbol: "R$", locale: "pt-BR", name: "Brazilian Real" },
+    { code: "MXN", symbol: "$", locale: "es-MX", name: "Mexican Peso" },
+    { code: "ZAR", symbol: "R", locale: "en-ZA", name: "South African Rand" },
+    { code: "ILS", symbol: "₪", locale: "he-IL", name: "Israeli Shekel" },
+    { code: "SAR", symbol: "﷼", locale: "ar-SA", name: "Saudi Riyal" },
+    { code: "AED", symbol: "د.إ", locale: "ar-AE", name: "UAE Dirham" },
+    { code: "SGD", symbol: "S$", locale: "en-SG", name: "Singapore Dollar" },
+    { code: "HKD", symbol: "HK$", locale: "en-HK", name: "Hong Kong Dollar" },
+    { code: "NZD", symbol: "NZ$", locale: "en-NZ", name: "New Zealand Dollar" },
+  ];
 
   // Business info state
   const [businessInfo, setBusinessInfo] = useState({
@@ -75,6 +109,9 @@ export default function Settings() {
     phone: tenant?.phone || "",
     address: tenant?.address || "",
     website: tenant?.website || "",
+    currencyCode: tenant?.currencyCode || "GBP",
+    currencySymbol: tenant?.currencySymbol || "£",
+    currencyLocale: tenant?.currencyLocale || "en-GB",
   });
 
   // API keys and integration state
@@ -123,15 +160,31 @@ export default function Settings() {
     e.preventDefault();
 
     try {
-      // In a real app, this would update the tenant data in the database
+      const response = await fetch('/api/tenants', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(businessInfo),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update business information');
+      }
+
+      // Refresh currency context after successful update
+      refreshCurrency();
+
       toast({
         title: "Business information updated",
-        description: "Your business details have been successfully saved.",
+        description: "Your business details and currency settings have been successfully saved.",
       });
     } catch (error) {
+      console.error('Error updating business info:', error);
       toast({
         title: "Error",
-        description: "Failed to update business information.",
+        description: "Failed to update business information. Please try again.",
         variant: "destructive",
       });
     }
@@ -305,6 +358,39 @@ export default function Settings() {
                         onChange={(e) => setBusinessInfo({...businessInfo, website: e.target.value})}
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="currency-code">Business Currency</Label>
+                    <Select
+                      value={businessInfo.currencyCode}
+                      onValueChange={(value) => {
+                        const currency = currencyData.find(c => c.code === value);
+                        if (currency) {
+                          setBusinessInfo({
+                            ...businessInfo,
+                            currencyCode: value,
+                            currencySymbol: currency.symbol,
+                            currencyLocale: currency.locale,
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="currency-code">
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currencyData.map((currency) => (
+                          <SelectItem key={currency.code} value={currency.code}>
+                            {currency.symbol} {currency.code} - {currency.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      This currency will be used throughout your dashboard for all monetary displays.
+                      Current setting: {businessInfo.currencySymbol} ({businessInfo.currencyCode})
+                    </p>
                   </div>
 
                   <div className="space-y-2">

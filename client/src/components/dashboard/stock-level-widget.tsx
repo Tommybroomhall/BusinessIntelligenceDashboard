@@ -6,9 +6,16 @@ import { productApi, type Product, type StockLevel } from '../../lib/api';
 import { Progress } from '../ui/progress';
 
 export function StockLevelWidget() {
-  // Fetch all products to calculate stock level distribution
+  // Fetch all products to calculate stock level distribution with enhanced caching and auto-refresh
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['/api/products'],
+    staleTime: 5 * 60 * 1000, // 5 minutes - product data doesn't change frequently
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache for 30 minutes
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60 * 1000, // Auto-refresh every 10 minutes (products change less frequently)
+    // Show cached data immediately while fetching fresh data
+    placeholderData: (previousData) => previousData,
+    refetchOnMount: 'always',
   });
 
   // Calculate stock level counts
@@ -69,4 +76,4 @@ export function StockLevelWidget() {
       </CardFooter>
     </Card>
   );
-} 
+}

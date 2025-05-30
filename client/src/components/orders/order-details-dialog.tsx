@@ -50,6 +50,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
+import { sanitizeImageUrl } from '@/lib/security';
+import { useCurrencyFormatter } from "@/context/CurrencyContext";
 
 interface OrderDetailsDialogProps {
   orderId: string | number | null;
@@ -60,7 +62,8 @@ interface OrderDetailsDialogProps {
 export function OrderDetailsDialog({ orderId, open, onOpenChange }: OrderDetailsDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'items'>('details');
+  const { formatCurrency } = useCurrencyFormatter();
 
   // Fetch order data
   const {
@@ -259,7 +262,7 @@ export function OrderDetailsDialog({ orderId, open, onOpenChange }: OrderDetails
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Total Amount:</span>
-                      <span className="font-medium">${order.amount.toFixed(2)}</span>
+                      <span className="font-medium">{formatCurrency(order.amount)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Items:</span>
@@ -298,6 +301,7 @@ export function OrderDetailsDialog({ orderId, open, onOpenChange }: OrderDetails
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead className="w-16">Image</TableHead>
                             <TableHead>Product</TableHead>
                             <TableHead className="text-right">Price</TableHead>
                             <TableHead className="text-right">Quantity</TableHead>
@@ -307,15 +311,38 @@ export function OrderDetailsDialog({ orderId, open, onOpenChange }: OrderDetails
                         <TableBody>
                           {orderItems.map((item) => (
                             <TableRow key={item._id || item.id}>
+                              <TableCell className="align-middle">
+                                <div className="w-12 h-12 flex items-center justify-center bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
+                                  {(() => {
+                                    const sanitizedUrl = sanitizeImageUrl(item.productImageUrl);
+                                    return sanitizedUrl ? (
+                                      <img
+                                        src={sanitizedUrl}
+                                        alt={item.productName || 'Product'}
+                                        className="object-cover w-12 h-12 rounded-lg"
+                                        width={48}
+                                        height={48}
+                                      />
+                                    ) : (
+                                      <div className="w-12 h-12 flex items-center justify-center text-gray-300 bg-gray-50 rounded-lg">
+                                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="w-6 h-6">
+                                          <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="2" fill="none" />
+                                          <path d="M8 15l2.5-3 2.5 3 3.5-4.5L21 19H3l5-7z" stroke="currentColor" strokeWidth="2" fill="none" />
+                                        </svg>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </TableCell>
                               <TableCell className="font-medium">{item.productName || 'Unknown Product'}</TableCell>
-                              <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
                               <TableCell className="text-right">{item.quantity}</TableCell>
-                              <TableCell className="text-right">${(item.price * item.quantity).toFixed(2)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(item.price * item.quantity)}</TableCell>
                             </TableRow>
                           ))}
                           <TableRow>
-                            <TableCell colSpan={3} className="text-right font-medium">Total</TableCell>
-                            <TableCell className="text-right font-bold">${order.amount.toFixed(2)}</TableCell>
+                            <TableCell colSpan={4} className="text-right font-medium">Total</TableCell>
+                            <TableCell className="text-right font-bold">{formatCurrency(order.amount)}</TableCell>
                           </TableRow>
                         </TableBody>
                       </Table>

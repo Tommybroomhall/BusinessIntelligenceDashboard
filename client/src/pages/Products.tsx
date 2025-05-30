@@ -8,7 +8,7 @@ import { StockLevelBadge } from '../components/ui/stock-level-badge';
 import { StockLevelSelector } from '../components/ui/stock-level-selector';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { formatCurrency } from '../lib/utils';
+import { useCurrencyFormatter } from '../context/CurrencyContext';
 import { AddProductDialog } from '../components/products/add-product-dialog-new';
 import { ProductDetailsDialog } from '../components/products/product-details-dialog';
 import { sanitizeImageUrl } from '@/lib/security';
@@ -17,6 +17,7 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<string>('all');
   const queryClient = useQueryClient();
+  const { formatCurrency } = useCurrencyFormatter();
 
   // State for product details dialog
   const [selectedProductId, setSelectedProductId] = useState<string | number | null>(null);
@@ -137,7 +138,7 @@ export default function ProductsPage() {
                       <TableHead>Category</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Stock Level</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead>Update Stock Level</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

@@ -28,6 +28,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, Loader2, Mail, Phone, MapPin, Calendar, Package } from 'lucide-react';
 import { customerApi, type Customer, type Order } from '@/lib/api/customer';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { formatDate } from "@/lib/utils";
+import { useCurrencyFormatter } from "@/context/CurrencyContext";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CustomerDetailsDialogProps {
   customer: Customer | null;
@@ -40,6 +43,9 @@ export function CustomerDetailsDialog({
   open,
   onOpenChange,
 }: CustomerDetailsDialogProps) {
+  const { toast } = useToast();
+  const { formatCurrency } = useCurrencyFormatter();
+
   // Format date from ISO string
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
@@ -243,13 +249,13 @@ export function CustomerDetailsDialog({
                     <div>
                       <div className="text-sm font-medium text-gray-500">Total Spent</div>
                       <div className="text-2xl font-bold mt-1">
-                        ${isLoadingOrders
-                          ? (customer.totalSpent !== undefined ? customer.totalSpent.toFixed(2) : '0.00')
-                          : orderSummary.totalSpent.toFixed(2)}
+                        {isLoadingOrders
+                          ? (customer.totalSpent !== undefined ? formatCurrency(customer.totalSpent) : formatCurrency(0))
+                          : formatCurrency(orderSummary.totalSpent)}
                       </div>
                       {hasDiscrepancy && !isLoadingOrders && customer.totalSpent !== undefined && (
                         <div className="text-xs text-gray-500 mt-1">
-                          Stored: ${customer.totalSpent.toFixed(2)}
+                          Stored: {formatCurrency(customer.totalSpent)}
                         </div>
                       )}
                     </div>
@@ -269,13 +275,13 @@ export function CustomerDetailsDialog({
                     <div>
                       <div className="text-sm font-medium text-gray-500">Avg. Order Value</div>
                       <div className="text-2xl font-bold mt-1">
-                        ${isLoadingOrders
+                        {isLoadingOrders
                           ? (customer.orderCount !== undefined && customer.totalSpent !== undefined && customer.orderCount > 0
-                              ? (customer.totalSpent / customer.orderCount).toFixed(2)
-                              : '0.00')
+                              ? formatCurrency(customer.totalSpent / customer.orderCount)
+                              : formatCurrency(0))
                           : (orderSummary.orderCount > 0
-                              ? orderSummary.avgOrderValue.toFixed(2)
-                              : '0.00')}
+                              ? formatCurrency(orderSummary.avgOrderValue)
+                              : formatCurrency(0))}
                       </div>
                     </div>
                   </div>

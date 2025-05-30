@@ -14,6 +14,9 @@ const insertTenantSchema = z.object({
   website: z.string().optional(),
   logoUrl: z.string().optional(),
   primaryColor: z.string().optional(),
+  currencyCode: z.string().optional(),
+  currencySymbol: z.string().optional(),
+  currencyLocale: z.string().optional(),
 });
 
 // Get current tenant
@@ -41,7 +44,7 @@ router.patch("/", ensureTenantAccess(), async (req: Request, res: Response) => {
     }
 
     // Update only allowed fields
-    const allowedFields = ["name", "email", "phone", "address", "website", "logoUrl", "primaryColor"];
+    const allowedFields = ["name", "email", "phone", "address", "website", "logoUrl", "primaryColor", "currencyCode", "currencySymbol", "currencyLocale"];
     const updateData = Object.keys(req.body)
       .filter(key => allowedFields.includes(key))
       .reduce((obj, key) => {

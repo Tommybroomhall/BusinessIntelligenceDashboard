@@ -37,6 +37,7 @@ export interface IStorage {
   updateProduct(id: string | number, tenantId: string | number, productData: Partial<Product>): Promise<Product | undefined>;
   updateProductStockLevel(id: string | number, tenantId: string | number, stockLevel: StockLevel): Promise<Product | undefined>;
   getProductsByStockLevel(tenantId: string | number, stockLevel: StockLevel): Promise<Product[]>;
+  getPopularProductsWithSales(tenantId: string | number, limit?: number, fromDate?: Date, toDate?: Date): Promise<Array<{ id: string; name: string; category: string; price: number; imageUrl: string; sold: number; earnings: number }>>;
 
   // Order methods
   getOrder(id: string | number, tenantId: string | number): Promise<Order | undefined>;
@@ -46,6 +47,7 @@ export interface IStorage {
   updateOrderStatus(id: string | number, tenantId: string | number, status: OrderStatus): Promise<Order | undefined>;
   calculateRevenue(tenantId: string | number, fromDate?: Date, toDate?: Date): Promise<number>;
   calculateAverageOrderValue(tenantId: string | number, fromDate?: Date, toDate?: Date): Promise<number>;
+  getDailySalesBreakdown(tenantId: string | number, fromDate: Date, toDate: Date): Promise<Array<{ date: string; revenue: number; orderCount: number }>>;
 
   // Lead methods
   getLead(id: string | number, tenantId: string | number): Promise<Lead | undefined>;
@@ -281,6 +283,65 @@ export class MemStorage implements IStorage {
       .filter((product) => product.tenantId === tenantId && product.stockLevel === stockLevel);
   }
 
+  async getPopularProductsWithSales(tenantId: number, limit?: number, fromDate?: Date, toDate?: Date): Promise<Array<{ id: string; name: string; category: string; price: number; imageUrl: string; sold: number; earnings: number }>> {
+    const actualLimit = limit ?? 5;
+    
+    // Get all products for this tenant
+    const products = Array.from(this.products.values())
+      .filter((product) => product.tenantId === tenantId && product.isActive);
+    
+    // Get all orders in the specified date range
+    const orders = Array.from(this.orders.values())
+      .filter((order) => {
+        let match = order.tenantId === tenantId && order.status !== 'canceled' && order.status !== 'refunded';
+        if (fromDate) match = match && order.createdAt >= fromDate;
+        if (toDate) match = match && order.createdAt <= toDate;
+        return match;
+      });
+    
+    // Calculate sales data for each product
+    const productSalesMap = new Map<number, { sold: number; earnings: number }>();
+    
+    // For memory storage, we'll simulate order items by randomly distributing order amounts across products
+    // This is just for testing purposes - real implementation would use actual order items
+    orders.forEach((order) => {
+      // Simulate that each order contains 1-3 random products
+      const numProducts = Math.floor(Math.random() * 3) + 1;
+      const selectedProducts = products
+        .sort(() => 0.5 - Math.random())
+        .slice(0, numProducts);
+      
+      const amountPerProduct = order.amount / selectedProducts.length;
+      
+      selectedProducts.forEach((product) => {
+        const current = productSalesMap.get(product.id) || { sold: 0, earnings: 0 };
+        productSalesMap.set(product.id, {
+          sold: current.sold + 1,
+          earnings: current.earnings + amountPerProduct
+        });
+      });
+    });
+    
+    // Convert to result format and sort by sales volume
+    const result = products
+      .map((product) => {
+        const salesData = productSalesMap.get(product.id) || { sold: 0, earnings: 0 };
+        return {
+          id: product.id.toString(),
+          name: product.name,
+          category: product.category || 'Uncategorized',
+          price: product.price,
+          imageUrl: product.imageUrl || 'https://placehold.co/80x80?text=No+Image',
+          sold: salesData.sold,
+          earnings: Math.round(salesData.earnings * 100) / 100
+        };
+      })
+      .sort((a, b) => b.sold - a.sold)
+      .slice(0, actualLimit);
+    
+    return result;
+  }
+
   // Order methods
   async getOrder(id: number, tenantId: number): Promise<Order | undefined> {
     const order = this.orders.get(id);
@@ -360,6 +421,34 @@ export class MemStorage implements IStorage {
 
     const totalRevenue = orders.reduce((sum, order) => sum + Number(order.amount), 0);
     return totalRevenue / orders.length;
+  }
+
+  async getDailySalesBreakdown(tenantId: number, fromDate: Date, toDate: Date): Promise<Array<{ date: string; revenue: number; orderCount: number }>> {
+    const salesBreakdown: Array<{ date: string; revenue: number; orderCount: number }> = [];
+
+    const orders = Array.from(this.orders.values())
+      .filter((order) => {
+        let match = order.tenantId === tenantId && order.status !== 'canceled' && order.status !== 'refunded';
+        if (fromDate) match = match && order.createdAt >= fromDate;
+        if (toDate) match = match && order.createdAt <= toDate;
+        return match;
+      });
+
+    orders.forEach((order) => {
+      const date = order.createdAt.toISOString().split('T')[0];
+      const revenue = Number(order.amount);
+      const orderCount = 1;
+
+      const existingEntry = salesBreakdown.find(entry => entry.date === date);
+      if (existingEntry) {
+        existingEntry.revenue += revenue;
+        existingEntry.orderCount += orderCount;
+      } else {
+        salesBreakdown.push({ date, revenue, orderCount });
+      }
+    });
+
+    return salesBreakdown;
   }
 
   // Lead methods

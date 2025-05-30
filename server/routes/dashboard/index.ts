@@ -1,8 +1,30 @@
 import { Router, Request, Response } from 'express';
 import { getStorage } from '../../storageFactory';
 import { ensureTenantAccess } from '../../middleware/tenantAccess';
+import salesRoutes from './sales';
 
 const router = Router();
+
+// Register sales sub-routes
+router.use('/sales', salesRoutes);
+
+// Get popular products with real sales data
+router.get("/popular-products", ensureTenantAccess(), async (req: Request, res: Response) => {
+  try {
+    const storage = await getStorage();
+    const limit = parseInt(req.query.limit as string) || 5;
+    const fromDate = req.query.from ? new Date(req.query.from as string) : undefined;
+    const toDate = req.query.to ? new Date(req.query.to as string) : undefined;
+
+    // Get popular products with sales data
+    const popularProducts = await storage.getPopularProductsWithSales(req.tenantId, limit, fromDate, toDate);
+
+    res.json(popularProducts);
+  } catch (error) {
+    console.error("Error fetching popular products:", error);
+    res.status(500).json({ message: "An error occurred while fetching popular products" });
+  }
+});
 
 // Get dashboard data
 router.get("/", ensureTenantAccess(), async (req: Request, res: Response) => {
@@ -24,8 +46,8 @@ router.get("/", ensureTenantAccess(), async (req: Request, res: Response) => {
     // Get recent activity
     const recentActivity = await storage.getRecentActivity(req.tenantId);
 
-    // Get popular products
-    const popularProducts = await storage.listProducts(req.tenantId, 5);
+    // Get popular products with sales data
+    const popularProducts = await storage.getPopularProductsWithSales(req.tenantId, 5);
 
     res.json({
       kpi: {

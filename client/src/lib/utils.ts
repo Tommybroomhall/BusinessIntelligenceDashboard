@@ -5,23 +5,52 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Currency settings interface
+export interface CurrencySettings {
+  code: string;
+  symbol: string;
+  locale: string;
+}
+
+// Default currency settings (fallback to GBP)
+export const DEFAULT_CURRENCY: CurrencySettings = {
+  code: 'GBP',
+  symbol: '£',
+  locale: 'en-GB'
+};
+
 /**
- * Format a number as currency
+ * Format a number as currency using the provided currency settings
  * @param value - The number to format as currency
- * @param options - Intl.NumberFormat options
+ * @param currencySettings - Currency settings (code, symbol, locale)
+ * @param options - Additional Intl.NumberFormat options
  * @returns Formatted currency string
  */
 export function formatCurrency(
   value: number,
+  currencySettings: CurrencySettings = DEFAULT_CURRENCY,
   options: Intl.NumberFormatOptions = {}
 ): string {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat(currencySettings.locale, {
     style: 'currency',
-    currency: 'USD',
+    currency: currencySettings.code,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
     ...options
   }).format(value)
+}
+
+/**
+ * Format a number with just the currency symbol (no currency formatting)
+ * @param value - The number to format
+ * @param currencySettings - Currency settings
+ * @returns Formatted string with currency symbol
+ */
+export function formatCurrencySymbol(
+  value: number,
+  currencySettings: CurrencySettings = DEFAULT_CURRENCY
+): string {
+  return `${currencySettings.symbol}${value.toLocaleString(currencySettings.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**

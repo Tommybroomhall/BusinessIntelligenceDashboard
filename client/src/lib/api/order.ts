@@ -21,6 +21,7 @@ export interface OrderItem {
   orderId: string;
   productId: string;
   productName?: string; // This might be populated by the API
+  productImageUrl?: string; // Product image URL populated by the API
   quantity: number;
   price: number;
 }

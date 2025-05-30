@@ -31,7 +31,8 @@ import {
   Users,
   Monitor,
   Smartphone,
-  Tablet
+  Tablet,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -184,7 +185,10 @@ export default function Traffic() {
               <div>
                 <p className="text-sm font-medium text-gray-500">Mobile Devices</p>
                 <h3 className="text-2xl font-bold mt-1">
-                  {deviceData.find(d => d.name.toLowerCase() === 'mobile')?.value || 0}%
+                  {deviceData && deviceData.length > 0
+                    ? `${deviceData.find(d => d.name.toLowerCase() === 'mobile')?.value || 0}%`
+                    : (isVercelDataMissing ? 'No Data' : '0%')
+                  }
                 </h3>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">

@@ -62,6 +62,42 @@ async function inspectMongoSchema() {
       }
     }
 
+    // Inspect orders collection if it exists
+    if (collections.some(c => c.name === 'orders')) {
+      console.log('\nInspecting orders collection:');
+      const orders = await mongoose.connection.db.collection('orders').find().limit(3).toArray();
+      
+      if (orders.length > 0) {
+        console.log('\nSample order document:');
+        console.log(JSON.stringify(orders[0], null, 2));
+        
+        const count = await mongoose.connection.db.collection('orders').countDocuments();
+        console.log(`\nTotal orders in collection: ${count}`);
+      } else {
+        console.log('No orders found in the collection');
+      }
+    } else {
+      console.log('\nOrders collection not found!');
+    }
+
+    // Inspect orderitems collection if it exists
+    if (collections.some(c => c.name === 'orderitems')) {
+      console.log('\nInspecting orderitems collection:');
+      const orderItems = await mongoose.connection.db.collection('orderitems').find().limit(3).toArray();
+      
+      if (orderItems.length > 0) {
+        console.log('\nSample order item document:');
+        console.log(JSON.stringify(orderItems[0], null, 2));
+        
+        const count = await mongoose.connection.db.collection('orderitems').countDocuments();
+        console.log(`\nTotal order items in collection: ${count}`);
+      } else {
+        console.log('No order items found in the collection');
+      }
+    } else {
+      console.log('\nOrderItems collection not found!');
+    }
+
   } catch (error) {
     console.error('Error inspecting MongoDB:', error);
   } finally {

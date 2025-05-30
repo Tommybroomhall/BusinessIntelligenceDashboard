@@ -22,6 +22,16 @@ export type StockLevel = typeof StockLevels[number];
 export const CustomerStatuses = ['active', 'inactive'] as const;
 export type CustomerStatus = typeof CustomerStatuses[number];
 
+// Define supported currencies
+export const SupportedCurrencies = [
+  'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'KRW',
+  'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'HRK', 'RUB',
+  'TRY', 'BRL', 'MXN', 'ARS', 'CLP', 'COP', 'PEN', 'UYU', 'ZAR', 'EGP',
+  'MAD', 'NGN', 'KES', 'GHS', 'ILS', 'SAR', 'AED', 'QAR', 'KWD', 'BHD',
+  'THB', 'SGD', 'MYR', 'IDR', 'PHP', 'VND', 'HKD', 'TWD', 'NZD'
+] as const;
+export type SupportedCurrency = typeof SupportedCurrencies[number];
+
 // Base interface for all entities
 export interface BaseEntity {
   _id?: string;
@@ -39,6 +49,9 @@ export interface Tenant extends BaseEntity {
   website?: string;
   logoUrl?: string;
   primaryColor: string;
+  currencyCode: SupportedCurrency;
+  currencySymbol: string;
+  currencyLocale: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   stripeSecretKey?: string;
