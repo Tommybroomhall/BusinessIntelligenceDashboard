@@ -7,13 +7,15 @@ import {
   OrderItem,
   TrafficData,
   ActivityLog,
+  Notification,
   ITenant,
   IUser,
   IProduct,
   IOrder,
   IOrderItem,
   ITrafficData,
-  IActivityLog
+  IActivityLog,
+  INotification
 } from "./models";
 import { IStorage } from "./types";
 import { log } from "./vite";
@@ -113,10 +115,24 @@ export class MongoStorage implements IStorage {
   }
 
   // Tenant methods
-  async getTenant(id: number): Promise<any> {
+  async getTenant(id: string | number): Promise<any> {
     try {
       const TenantModel = this.getModel<ITenant>('Tenant');
-      return await TenantModel.findById(id);
+      
+      // Handle both ObjectId strings and numeric IDs for backward compatibility
+      let query: any;
+      if (typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)) {
+        // Use _id for ObjectId strings
+        query = { _id: id };
+      } else if (typeof id === 'number') {
+        // Use numeric id field for legacy numeric IDs
+        query = { id: id };
+      } else {
+        // Try as string ID first, then ObjectId
+        query = { _id: id };
+      }
+      
+      return await TenantModel.findOne(query);
     } catch (error) {
       log(`Error getting tenant: ${error}`, "mongodb");
       return undefined;
@@ -134,16 +150,37 @@ export class MongoStorage implements IStorage {
     }
   }
 
-  async updateTenant(id: number, tenantData: any): Promise<any> {
+  async updateTenant(id: string | number, tenantData: any): Promise<any> {
     try {
       const TenantModel = this.getModel<ITenant>('Tenant');
-      return await TenantModel.findByIdAndUpdate(
-        id,
+      
+      // Handle both ObjectId strings and numeric IDs for backward compatibility
+      let query: any;
+      if (typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)) {
+        // Use _id for ObjectId strings
+        query = { _id: id };
+      } else if (typeof id === 'number') {
+        // Use numeric id field for legacy numeric IDs
+        query = { id: id };
+      } else {
+        // Try as string ID first, then ObjectId
+        query = { _id: id };
+      }
+      
+      console.log(`[mongodb] Updating tenant with query:`, query);
+      console.log(`[mongodb] Update data:`, tenantData);
+      
+      const result = await TenantModel.findOneAndUpdate(
+        query,
         { ...tenantData, updatedAt: new Date() },
         { new: true }
       );
+      
+      console.log(`[mongodb] Update result:`, result);
+      return result;
     } catch (error) {
       log(`Error updating tenant: ${error}`, "mongodb");
+      console.error('Full updateTenant error:', error);
       return undefined;
     }
   }
@@ -165,7 +202,7 @@ export class MongoStorage implements IStorage {
       const ProductModel = this.getModel<IProduct>('Product');
 
       let query: any = { _id: id };
-      
+
       // Convert tenantId to ObjectId if needed
       let tenantIdObj;
       try {
@@ -186,7 +223,7 @@ export class MongoStorage implements IStorage {
         console.error(`[mongodb] Failed to convert tenantId: ${tenantId} - ${err}`);
         tenantIdObj = tenantId;
       }
-      
+
       query.tenantId = tenantIdObj;
       console.log(`[mongodb] Using query with tenantId filter:`, query);
 
@@ -801,30 +838,30 @@ export class MongoStorage implements IStorage {
       const OrderModel = this.getModel<IOrder>('Order');
       const OrderItemModel = this.getModel<IOrderItem>('OrderItem');
       const ProductModel = this.getModel<IProduct>('Product');
-      
+
       const actualLimit = limit ?? 5;
-      
+
       // Build the date filter for orders
       const orderQuery: any = {
         tenantId,
         status: { $nin: ['canceled', 'refunded'] }
       };
-      
+
       if (fromDate || toDate) {
         orderQuery.createdAt = {};
         if (fromDate) orderQuery.createdAt.$gte = fromDate;
         if (toDate) orderQuery.createdAt.$lte = toDate;
       }
-      
+
       // Get all orders in the date range
       const orders = await OrderModel.find(orderQuery).select('_id').exec();
       const orderIds = orders.map(order => order._id);
-      
+
       if (orderIds.length === 0) {
         log(`No orders found for tenant ${tenantId} in the specified date range`, "mongodb");
         return [];
       }
-      
+
       // Aggregate order items to get sales data per product
       const salesAggregation = await OrderItemModel.aggregate([
         {
@@ -846,12 +883,12 @@ export class MongoStorage implements IStorage {
           $limit: actualLimit
         }
       ]);
-      
+
       if (salesAggregation.length === 0) {
         log(`No order items found for orders in the specified date range`, "mongodb");
         return [];
       }
-      
+
       // Get product details for the top selling products
       const productIds = salesAggregation.map(item => item._id);
       const products = await ProductModel.find({
@@ -859,7 +896,7 @@ export class MongoStorage implements IStorage {
         tenantId,
         isActive: true
       }).exec();
-      
+
       // Create a map of product sales data
       const salesMap = new Map();
       salesAggregation.forEach(item => {
@@ -868,12 +905,12 @@ export class MongoStorage implements IStorage {
           earnings: Math.round(item.totalEarnings * 100) / 100
         });
       });
-      
+
       // Transform products to the expected format
       const result = products.map(product => {
         const productObj = product.toObject();
         const salesData = salesMap.get(productObj._id.toString()) || { sold: 0, earnings: 0 };
-        
+
         return {
           id: productObj._id.toString(),
           name: productObj.name,
@@ -886,10 +923,10 @@ export class MongoStorage implements IStorage {
       })
       // Sort by sales volume (sold quantity) in descending order
       .sort((a, b) => b.sold - a.sold);
-      
+
       console.log(`[mongodb] Found ${result.length} popular products with sales data`);
       return result;
-      
+
     } catch (error) {
       log(`Error getting popular products with sales: ${error}`, "mongodb");
       console.error('Full error:', error);
@@ -1126,6 +1163,135 @@ export class MongoStorage implements IStorage {
       log(`Error getting orders by customer: ${error}`, "mongodb");
       console.error('Full error:', error);
       return [];
+    }
+  }
+
+  // Notification methods
+  async createNotification(notificationData: any): Promise<any> {
+    try {
+      const NotificationModel = this.getModel<INotification>('Notification');
+      const notification = new NotificationModel(notificationData);
+      return await notification.save();
+    } catch (error) {
+      log(`Error creating notification: ${error}`, "mongodb");
+      throw error;
+    }
+  }
+
+  async getNotifications(tenantId: number, userId?: string, limit: number = 50): Promise<any[]> {
+    try {
+      const NotificationModel = this.getModel<INotification>('Notification');
+
+      // Convert tenantId to ObjectId if it's a string
+      const tenantIdObj = mongoose.isValidObjectId(tenantId) ?
+                          mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                          tenantId;
+
+      const query: any = { tenantId: tenantIdObj };
+
+      // If userId is provided, filter by user or global notifications
+      if (userId) {
+        const userIdObj = mongoose.isValidObjectId(userId) ?
+                          mongoose.Types.ObjectId.createFromHexString(userId) :
+                          userId;
+        query.$or = [
+          { userId: userIdObj },
+          { userId: { $exists: false } } // Global notifications
+        ];
+      }
+
+      // Only return non-expired notifications
+      query.$or = [
+        { expiresAt: { $exists: false } },
+        { expiresAt: { $gt: new Date() } }
+      ];
+
+      return await NotificationModel.find(query)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .exec();
+    } catch (error) {
+      log(`Error getting notifications: ${error}`, "mongodb");
+      return [];
+    }
+  }
+
+  async markNotificationAsRead(notificationId: string, tenantId: number): Promise<any> {
+    try {
+      const NotificationModel = this.getModel<INotification>('Notification');
+
+      const tenantIdObj = mongoose.isValidObjectId(tenantId) ?
+                          mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                          tenantId;
+
+      return await NotificationModel.findOneAndUpdate(
+        { _id: notificationId, tenantId: tenantIdObj },
+        { isRead: true, updatedAt: new Date() },
+        { new: true }
+      );
+    } catch (error) {
+      log(`Error marking notification as read: ${error}`, "mongodb");
+      throw error;
+    }
+  }
+
+  async dismissNotification(notificationId: string, tenantId: number): Promise<any> {
+    try {
+      const NotificationModel = this.getModel<INotification>('Notification');
+
+      const tenantIdObj = mongoose.isValidObjectId(tenantId) ?
+                          mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                          tenantId;
+
+      return await NotificationModel.findOneAndUpdate(
+        { _id: notificationId, tenantId: tenantIdObj },
+        { isDismissed: true, updatedAt: new Date() },
+        { new: true }
+      );
+    } catch (error) {
+      log(`Error dismissing notification: ${error}`, "mongodb");
+      throw error;
+    }
+  }
+
+  async getUnreadNotificationCount(tenantId: number, userId?: string): Promise<number> {
+    try {
+      const NotificationModel = this.getModel<INotification>('Notification');
+
+      const tenantIdObj = mongoose.isValidObjectId(tenantId) ?
+                          mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                          tenantId;
+
+      const query: any = {
+        tenantId: tenantIdObj,
+        isRead: false,
+        isDismissed: false
+      };
+
+      if (userId) {
+        const userIdObj = mongoose.isValidObjectId(userId) ?
+                          mongoose.Types.ObjectId.createFromHexString(userId) :
+                          userId;
+        query.$or = [
+          { userId: userIdObj },
+          { userId: { $exists: false } }
+        ];
+      }
+
+      // Only count non-expired notifications
+      query.$and = [
+        {
+          $or: [
+            { expiresAt: { $exists: false } },
+            { expiresAt: { $gt: new Date() } }
+          ]
+        }
+      ];
+
+      return await NotificationModel.countDocuments(query);
+    } catch (error) {
+      log(`Error getting unread notification count: ${error}`, "mongodb");
+      return 0;
     }
   }
 

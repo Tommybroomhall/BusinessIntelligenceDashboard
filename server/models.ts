@@ -37,6 +37,16 @@ export interface ITenant extends Document {
   vercelApiToken?: string;
   vercelProjectId?: string;
   vercelTeamId?: string;
+  // Webhook configuration
+  webhookSecret?: string;
+  webhookEnabled?: boolean;
+  webhookEndpoints?: {
+    orders?: boolean;
+    notifications?: boolean;
+    payments?: boolean;
+  };
+  webhookRetryAttempts?: number;
+  webhookTimeoutMs?: number;
 }
 
 export interface IUser extends Document {
@@ -118,6 +128,25 @@ export interface IActivityLog extends Document {
   createdAt: Date;
 }
 
+export interface INotification extends Document {
+  tenantId: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error' | 'order' | 'payment' | 'system';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  isRead: boolean;
+  isDismissed: boolean;
+  actionUrl?: string;
+  actionText?: string;
+  entityType?: string;
+  entityId?: mongoose.Types.ObjectId;
+  metadata?: Record<string, any>;
+  expiresAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Define schemas
 const TenantSchema = new Schema<ITenant>({
   name: { type: String, required: true },
@@ -138,7 +167,17 @@ const TenantSchema = new Schema<ITenant>({
   ga4Key: String,
   vercelApiToken: String,
   vercelProjectId: String,
-  vercelTeamId: String
+  vercelTeamId: String,
+  // Webhook configuration
+  webhookSecret: String,
+  webhookEnabled: { type: Boolean, default: false },
+  webhookEndpoints: {
+    orders: { type: Boolean, default: true },
+    notifications: { type: Boolean, default: true },
+    payments: { type: Boolean, default: true }
+  },
+  webhookRetryAttempts: { type: Number, default: 3 },
+  webhookTimeoutMs: { type: Number, default: 30000 }
 });
 
 const UserSchema = new Schema<IUser>({
@@ -220,6 +259,33 @@ const ActivityLogSchema = new Schema<IActivityLog>({
   createdAt: { type: Date, default: Date.now }
 });
 
+const NotificationSchema = new Schema<INotification>({
+  tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User' },
+  title: { type: String, required: true },
+  message: { type: String, required: true },
+  type: {
+    type: String,
+    enum: ['info', 'success', 'warning', 'error', 'order', 'payment', 'system'],
+    default: 'info'
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
+  },
+  isRead: { type: Boolean, default: false },
+  isDismissed: { type: Boolean, default: false },
+  actionUrl: String,
+  actionText: String,
+  entityType: String,
+  entityId: Schema.Types.ObjectId,
+  metadata: Schema.Types.Mixed,
+  expiresAt: Date,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
 // Create and export models
 export const Tenant: Model<ITenant> = mongoose.models.Tenant || mongoose.model<ITenant>('Tenant', TenantSchema);
 export const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
@@ -229,3 +295,4 @@ export const Order: Model<IOrder> = mongoose.models.Order || mongoose.model<IOrd
 export const OrderItem: Model<IOrderItem> = mongoose.models.OrderItem || mongoose.model<IOrderItem>('OrderItem', OrderItemSchema);
 export const TrafficData: Model<ITrafficData> = mongoose.models.TrafficData || mongoose.model<ITrafficData>('TrafficData', TrafficDataSchema);
 export const ActivityLog: Model<IActivityLog> = mongoose.models.ActivityLog || mongoose.model<IActivityLog>('ActivityLog', ActivityLogSchema);
+export const Notification: Model<INotification> = mongoose.models.Notification || mongoose.model<INotification>('Notification', NotificationSchema);

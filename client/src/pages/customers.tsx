@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CustomerDetailsDialog } from "@/components/customers/customer-details-dialog";
+import { useCurrencyFormatter } from '@/context/CurrencyContext';
 
 // Customer type definition based on MongoDB schema
 interface Customer {
@@ -85,6 +86,7 @@ export default function Customers() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { formatCurrency } = useCurrencyFormatter();
 
   // Fetch customers data from MongoDB through API
   const { data, isLoading, isError, error } = useQuery<CustomersResponse>({
@@ -271,7 +273,7 @@ export default function Customers() {
                         {customer.location}
                       </div>
                     </TableCell>
-                    <TableCell>${customer.totalSpent !== undefined ? customer.totalSpent.toFixed(2) : '0.00'}</TableCell>
+                    <TableCell>{formatCurrency(customer.totalSpent || 0)}</TableCell>
                     <TableCell>{customer.orderCount !== undefined ? customer.orderCount : 0}</TableCell>
                     <TableCell>
                       <div className="flex items-center">

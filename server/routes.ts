@@ -14,6 +14,8 @@ import trafficRoutes from './routes/traffic';
 import dashboardRoutes from './routes/dashboard';
 import salesRoutes from './routes/sales';
 import ordersRoutes from './routes/orders/index';
+import webhooksRoutes from './routes/webhooks';
+import notificationsRoutes from './routes/notifications';
 
 // Define enum values for validation (kept for backward compatibility)
 export const orderStatusEnum = {
@@ -40,6 +42,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/dashboard', dashboardRoutes);
   app.use('/api/sales', salesRoutes);
   app.use('/api/orders', ordersRoutes);
+  app.use('/api/webhooks', webhooksRoutes);
+  app.use('/api/notifications', notificationsRoutes);
 
   // Initialize HTTP server
   const httpServer = createServer(app);

@@ -1,6 +1,6 @@
 /**
  * Shared types for the Business Intelligence Dashboard
- * 
+ *
  * This file contains type definitions that are shared between the client and server.
  * It replaces the previous Drizzle ORM schema definitions with pure TypeScript types
  * that match the Mongoose models.
@@ -59,6 +59,16 @@ export interface Tenant extends BaseEntity {
   vercelApiToken?: string;
   vercelProjectId?: string;
   vercelTeamId?: string;
+  // Webhook configuration
+  webhookSecret?: string;
+  webhookEnabled?: boolean;
+  webhookEndpoints?: {
+    orders?: boolean;
+    notifications?: boolean;
+    payments?: boolean;
+  };
+  webhookRetryAttempts?: number;
+  webhookTimeoutMs?: number;
 }
 
 // User interface

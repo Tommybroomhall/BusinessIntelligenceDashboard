@@ -12,6 +12,7 @@ import {
   TooltipProps,
 } from "recharts";
 import { format } from "date-fns";
+import { useCurrencyFormatter } from "@/context/CurrencyContext";
 
 interface SalesDataPoint {
   date: string;
@@ -28,6 +29,7 @@ interface SalesChartProps {
 
 export function SalesChart({ data, title = "Sales Analytics" }: SalesChartProps) {
   const [timeframe, setTimeframe] = useState<"monthly" | "weekly">("monthly");
+  const { formatCurrency } = useCurrencyFormatter();
   
   const chartData = timeframe === "monthly" ? data.monthly : data.weekly;
 
@@ -36,7 +38,7 @@ export function SalesChart({ data, title = "Sales Analytics" }: SalesChartProps)
     if (active && payload && payload.length) {
       return (
         <div className="bg-gray-900 text-white p-2 rounded text-xs">
-          <p className="font-bold">${payload[0].value?.toLocaleString()}</p>
+          <p className="font-bold">{formatCurrency(payload[0].value || 0)}</p>
           <p className="text-gray-300">{label}</p>
         </div>
       );
@@ -97,7 +99,7 @@ export function SalesChart({ data, title = "Sales Analytics" }: SalesChartProps)
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                tickFormatter={(value) => `$${value.toLocaleString()}`}
+                tickFormatter={(value) => formatCurrency(value)}
                 dx={-10}
               />
               <CartesianGrid

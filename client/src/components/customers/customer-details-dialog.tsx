@@ -30,7 +30,7 @@ import { customerApi, type Customer, type Order } from '@/lib/api/customer';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { formatDate } from "@/lib/utils";
 import { useCurrencyFormatter } from "@/context/CurrencyContext";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface CustomerDetailsDialogProps {
   customer: Customer | null;
@@ -328,11 +328,10 @@ export function CustomerDetailsDialog({
                         {customerOrders.map((order) => (
                           <TableRow key={order._id || order.id}>
                             <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                            <TableCell>
-                              {order.createdAt ? formatDate(order.createdAt) :
+                            <TableCell>{order.createdAt ? formatDate(order.createdAt) :
                                order.date ? formatDate(order.date) : 'N/A'}
                             </TableCell>
-                            <TableCell>${order.amount.toFixed(2)}</TableCell>
+                            <TableCell>{formatCurrency(order.amount)}</TableCell>
                             <TableCell>
                               <Badge
                                 variant="outline"

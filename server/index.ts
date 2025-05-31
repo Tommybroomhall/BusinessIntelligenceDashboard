@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { connectToDatabase } from "./db";
+import { NotificationService } from "./services/notification";
 import dotenv from "dotenv";
 import session from "express-session";
 import memorystore from "memorystore";
@@ -80,6 +81,10 @@ app.use((req, res, next) => {
 
   const server = await registerRoutes(app);
 
+  // Initialize notification service with Socket.IO
+  const notificationService = new NotificationService(server);
+  log("Notification service initialized with Socket.IO", "server");
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -107,5 +112,6 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    log(`Socket.IO server ready for real-time notifications`, "server");
   });
 })();

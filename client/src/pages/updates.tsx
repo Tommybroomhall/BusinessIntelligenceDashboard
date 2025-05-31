@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -31,9 +31,19 @@ import {
   Mail,
   CheckCircle,
   Clock,
-  Filter
+  Filter,
+  MessageSquare,
+  Info,
+  XCircle,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { OrderDetailsDialog } from "@/components/orders/order-details-dialog";
+import { useCurrencyFormatter } from "@/context/CurrencyContext";
 
 // Define types for our data
 interface Message {
@@ -80,6 +90,7 @@ export default function Updates() {
   // State for order details dialog
   const [selectedOrderId, setSelectedOrderId] = useState<string | number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { formatCurrency } = useCurrencyFormatter();
 
   // Handle order click
   const handleOrderClick = (order: Order) => {
@@ -387,7 +398,7 @@ export default function Updates() {
                         <TableRow key={order.id}>
                           <TableCell className="font-medium">{order.orderNumber}</TableCell>
                           <TableCell>{order.customerName}</TableCell>
-                          <TableCell>${order.amount.toFixed(2)}</TableCell>
+                          <TableCell>{formatCurrency(order.amount)}</TableCell>
                           <TableCell>{order.items}</TableCell>
                           <TableCell className="text-right">
                             <Button
@@ -566,7 +577,7 @@ export default function Updates() {
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">{order.orderNumber}</TableCell>
                       <TableCell>{order.customerName}</TableCell>
-                      <TableCell>${order.amount.toFixed(2)}</TableCell>
+                      <TableCell>{formatCurrency(order.amount)}</TableCell>
                       <TableCell>{formatDate(order.date)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={

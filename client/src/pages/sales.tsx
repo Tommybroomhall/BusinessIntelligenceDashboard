@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { OrderDetailsDialog } from "@/components/orders/order-details-dialog";
+import { useCurrencyFormatter } from "@/context/CurrencyContext";
 
 // Define types for API responses
 interface Order {
@@ -58,6 +59,7 @@ export default function Sales() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
+  const { formatCurrency } = useCurrencyFormatter();
 
   // State for order details dialog
   const [selectedOrderId, setSelectedOrderId] = useState<string | number | null>(null);
@@ -162,7 +164,7 @@ export default function Sales() {
                     >
                       <TableCell className="font-medium">{order.orderNumber || order.id}</TableCell>
                       <TableCell>{order.customerName || order.customer}</TableCell>
-                      <TableCell>${Number(order.amount).toFixed(2)}</TableCell>
+                      <TableCell>{formatCurrency(Number(order.amount))}</TableCell>
                       <TableCell>{new Date(order.createdAt || order.date || Date.now()).toLocaleDateString()}</TableCell>
                       <TableCell>
                         <Badge

@@ -52,7 +52,8 @@ import {
   BarChart4,
   CreditCard,
   Globe,
-  Server
+  Server,
+  Webhook
 } from "lucide-react";
 import {
   Alert,
@@ -65,6 +66,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { WebhookSettings } from "@/components/settings/webhook-settings";
 
 export default function Settings() {
   const { tenant } = useTenant();
@@ -160,7 +162,7 @@ export default function Settings() {
     e.preventDefault();
 
     try {
-      const response = await fetch('/api/tenants', {
+      const response = await fetch('/api/tenant', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -175,6 +177,10 @@ export default function Settings() {
 
       // Refresh currency context after successful update
       refreshCurrency();
+
+      // Invalidate all sales data queries to trigger refetch with new currency
+      queryClient.invalidateQueries({ queryKey: ['sales-data'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/sales'] });
 
       toast({
         title: "Business information updated",
@@ -306,6 +312,7 @@ export default function Settings() {
         <TabsList className="mb-6">
           <TabsTrigger value="business">Business</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
         </TabsList>
 
@@ -1029,6 +1036,11 @@ export default function Settings() {
               </div>
             </form>
           </div>
+        </TabsContent>
+
+        {/* Webhooks Tab */}
+        <TabsContent value="webhooks">
+          <WebhookSettings />
         </TabsContent>
 
         {/* Team Tab */}

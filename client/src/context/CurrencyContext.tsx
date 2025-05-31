@@ -22,7 +22,7 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
   const { data: tenant, isLoading, error, refetch } = useQuery({
     queryKey: ['tenant'],
     queryFn: async () => {
-      const response = await fetch('/api/tenants');
+      const response = await fetch('/api/tenant');
       if (!response.ok) {
         throw new Error('Failed to fetch tenant information');
       }
@@ -40,6 +40,10 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
         symbol: tenant.currencySymbol,
         locale: tenant.currencyLocale,
       });
+    } else if (tenant) {
+      // Fallback for tenants without currency settings (e.g., older data)
+      console.warn('Tenant missing currency settings, using defaults');
+      setCurrencySettings(DEFAULT_CURRENCY);
     }
   }, [tenant]);
 
