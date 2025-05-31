@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Bell, Check, X, ExternalLink, Wifi, WifiOff } from 'lucide-react';
+import { Bell, Check, X, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuHeader,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -23,10 +23,12 @@ interface NotificationBellProps {
 export function NotificationBell({ tenantId, userId, className }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
   
+  // Debug logging
+  console.log('🔔 NotificationBell props:', { tenantId, userId, className });
+  
   const {
     notifications,
     unreadCount,
-    isConnected,
     isLoading,
     markAsRead,
     dismiss,
@@ -36,6 +38,12 @@ export function NotificationBell({ tenantId, userId, className }: NotificationBe
     userId,
     enableRealTime: true,
     showToasts: false // Don't show toasts for notifications in the bell
+  });
+
+  console.log('🔔 NotificationBell state:', { 
+    notificationsCount: notifications.length, 
+    unreadCount, 
+    isLoading 
   });
 
   const unreadNotifications = notifications.filter(n => !n.isRead && !n.isDismissed);
@@ -125,20 +133,11 @@ export function NotificationBell({ tenantId, userId, className }: NotificationBe
               {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
           )}
-          
-          {/* Connection status indicator */}
-          <div className="absolute -bottom-1 -right-1">
-            {isConnected ? (
-              <Wifi className="h-3 w-3 text-green-500" />
-            ) : (
-              <WifiOff className="h-3 w-3 text-red-500" />
-            )}
-          </div>
         </Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuHeader className="flex items-center justify-between">
+        <DropdownMenuLabel className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <h3 className="font-semibold">Notifications</h3>
             {unreadCount > 0 && (
@@ -149,12 +148,6 @@ export function NotificationBell({ tenantId, userId, className }: NotificationBe
           </div>
           
           <div className="flex items-center space-x-1">
-            {!isConnected && (
-              <Badge variant="destructive" className="text-xs">
-                Offline
-              </Badge>
-            )}
-            
             {unreadCount > 0 && (
               <Button
                 variant="ghost"
@@ -166,7 +159,7 @@ export function NotificationBell({ tenantId, userId, className }: NotificationBe
               </Button>
             )}
           </div>
-        </DropdownMenuHeader>
+        </DropdownMenuLabel>
 
         <DropdownMenuSeparator />
 

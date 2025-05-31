@@ -28,29 +28,67 @@ const updateNotificationSchema = z.object({
 });
 
 /**
- * Get notifications for the current tenant
+ * Get notifications for the current tenant (includes webhook notifications and dispatch alerts)
  */
 router.get('/', ensureTenantAccess(), async (req: Request, res: Response) => {
   try {
     const storage = await getStorage();
     const { limit = '50', userId, includeRead = 'true', includeDismissed = 'false' } = req.query;
-    
+
+    // Get regular notifications
     const notifications = await storage.getNotifications(
       req.tenantId,
       userId as string,
       parseInt(limit as string)
     );
 
+    // Get orders that need dispatching and create notifications for them
+    const ordersNeedingDispatch = await storage.getOrdersNeedingDispatch(req.tenantId);
+
+    // Create dispatch notifications for orders that need shipping
+    const dispatchNotifications = ordersNeedingDispatch.map(order => ({
+      _id: `dispatch-${order._id}`,
+      title: 'Order Ready for Dispatch',
+      message: `Order #${order.orderNumber} from ${order.customerName} is ready to ship`,
+      type: 'order',
+      priority: 'high',
+      isRead: false,
+      isDismissed: false,
+      actionUrl: `/orders/${order._id}`,
+      actionText: 'View Order',
+      entityType: 'order',
+      entityId: order._id,
+      metadata: {
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        status: order.status,
+        total: order.total,
+        isDispatchAlert: true
+      },
+      createdAt: order.updatedAt || order.createdAt,
+      updatedAt: order.updatedAt || order.createdAt,
+      expiresAt: null
+    }));
+
+    // Combine all notifications
+    const allNotifications = [...notifications, ...dispatchNotifications];
+
     // Filter based on query parameters
-    let filteredNotifications = notifications;
-    
+    let filteredNotifications = allNotifications;
+
     if (includeRead === 'false') {
       filteredNotifications = filteredNotifications.filter(n => !n.isRead);
     }
-    
+
     if (includeDismissed === 'false') {
       filteredNotifications = filteredNotifications.filter(n => !n.isDismissed);
     }
+
+    // Sort by creation date (newest first) and limit
+    filteredNotifications = filteredNotifications
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, parseInt(limit as string));
 
     // Transform for frontend
     const transformedNotifications = filteredNotifications.map(notification => ({
@@ -83,19 +121,27 @@ router.get('/', ensureTenantAccess(), async (req: Request, res: Response) => {
 });
 
 /**
- * Get unread notification count
+ * Get unread notification count (includes dispatch alerts)
  */
 router.get('/count', ensureTenantAccess(), async (req: Request, res: Response) => {
   try {
     const storage = await getStorage();
     const { userId } = req.query;
-    
-    const count = await storage.getUnreadNotificationCount(
+
+    // Get regular unread notification count
+    const regularCount = await storage.getUnreadNotificationCount(
       req.tenantId,
       userId as string
     );
 
-    res.json({ count });
+    // Get orders that need dispatching (these are always "unread" until shipped)
+    const ordersNeedingDispatch = await storage.getOrdersNeedingDispatch(req.tenantId);
+    const dispatchCount = ordersNeedingDispatch.length;
+
+    // Total unread count
+    const totalCount = regularCount + dispatchCount;
+
+    res.json({ count: totalCount });
 
   } catch (error) {
     log(`Error fetching notification count: ${error}`, 'notifications');

@@ -89,10 +89,7 @@ export function WebhookSettings() {
   // Update webhook settings mutation
   const updateSettingsMutation = useMutation({
     mutationFn: (settings: Partial<WebhookSettings>) =>
-      apiRequest('/api/webhooks/settings', {
-        method: 'PATCH',
-        body: JSON.stringify(settings),
-      }),
+      apiRequest('PATCH', '/api/webhooks/settings', settings),
     onSuccess: () => {
       toast({
         title: 'Settings updated',
@@ -112,15 +109,18 @@ export function WebhookSettings() {
   // Generate new secret mutation
   const generateSecretMutation = useMutation({
     mutationFn: () =>
-      apiRequest('/api/webhooks/settings/generate-secret', {
-        method: 'POST',
-      }),
-    onSuccess: (data) => {
+      apiRequest('POST', '/api/webhooks/settings/generate-secret'),
+    onSuccess: async (data) => {
       toast({
         title: 'Secret generated',
         description: 'A new webhook secret has been generated successfully.',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/webhooks/settings'] });
+      
+      // Automatically show the new secret and refresh the secret data
+      setShowSecret(true);
+      await refetchSecret();
+      
       setIsGeneratingSecret(false);
     },
     onError: (error: any) => {
@@ -136,9 +136,7 @@ export function WebhookSettings() {
   // Test webhook mutation
   const testWebhookMutation = useMutation({
     mutationFn: () =>
-      apiRequest('/api/webhooks/settings/test', {
-        method: 'POST',
-      }),
+      apiRequest('POST', '/api/webhooks/settings/test'),
     onSuccess: () => {
       toast({
         title: 'Test successful',

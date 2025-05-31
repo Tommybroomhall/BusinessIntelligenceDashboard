@@ -65,23 +65,34 @@ interface StockAlert {
 }
 
 interface Order {
-  _id?: string;
-  id: string;
+  _id: string;
+  tenantId: string;
   orderNumber: string;
   customerName: string;
+  customerEmail: string;
   amount: number;
-  date: string;
   status: string;
-  items: number;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
 }
 
 interface SystemNotification {
   id: string;
   title: string;
-  description: string;
-  type: 'info' | 'warning' | 'error' | 'success';
-  date: string;
-  dismissed: boolean;
+  message: string;
+  type: 'info' | 'warning' | 'error' | 'success' | 'order' | 'payment' | 'system';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  isRead: boolean;
+  isDismissed: boolean;
+  actionUrl?: string;
+  actionText?: string;
+  entityType?: string;
+  entityId?: string;
+  metadata?: any;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt?: string;
 }
 
 export default function Updates() {
@@ -94,8 +105,8 @@ export default function Updates() {
 
   // Handle order click
   const handleOrderClick = (order: Order) => {
-    // Ensure we're using the full MongoDB ObjectId string
-    const orderId = order._id || order.id || null;
+    // Use the MongoDB ObjectId string
+    const orderId = order._id;
     console.log('Selected order ID:', orderId);
     setSelectedOrderId(orderId);
     setDialogOpen(true);
@@ -120,25 +131,25 @@ export default function Updates() {
   });
 
   // Fetch system notifications data
-  const { data: notificationsData, isLoading: isNotificationsLoading } = useQuery<SystemNotification[]>({
+  const { data: notificationsResponse, isLoading: isNotificationsLoading } = useQuery<{notifications: SystemNotification[], total: number}>({
     queryKey: ['/api/notifications'],
     staleTime: 60 * 1000, // 1 minute
   });
 
   // Check if data is available from API
-  const isDataMissing = !messagesData || !stockAlertsData || !pendingOrdersData || !notificationsData;
+  const isDataMissing = !messagesData || !stockAlertsData || !pendingOrdersData || !notificationsResponse;
 
   // If any data is missing, we'll show error messages instead of empty arrays
   const messages = messagesData;
   const stockAlerts = stockAlertsData;
   const pendingOrders = pendingOrdersData;
-  const notifications = notificationsData;
+  const notifications = notificationsResponse?.notifications;
 
   // Count unread items in each category (only if data is available)
   const unreadMessages = messages ? messages.filter(message => !message.read).length : 0;
   const criticalStockAlerts = stockAlerts ? stockAlerts.filter(alert => alert.currentStock <= 5).length : 0;
   const dispatchableOrders = pendingOrders ? pendingOrders.filter(order => order.status === "paid").length : 0;
-  const activeNotifications = notifications ? notifications.filter(notification => !notification.dismissed).length : 0;
+  const activeNotifications = notifications ? notifications.filter(notification => !notification.isDismissed).length : 0;
 
   const totalUpdates = unreadMessages + criticalStockAlerts + dispatchableOrders + activeNotifications;
 
@@ -395,11 +406,11 @@ export default function Updates() {
                     </TableHeader>
                     <TableBody>
                       {pendingOrders?.filter(order => order.status === "paid").slice(0, 3).map(order => (
-                        <TableRow key={order.id}>
+                        <TableRow key={order._id}>
                           <TableCell className="font-medium">{order.orderNumber}</TableCell>
                           <TableCell>{order.customerName}</TableCell>
                           <TableCell>{formatCurrency(order.amount)}</TableCell>
-                          <TableCell>{order.items}</TableCell>
+                          <TableCell>-</TableCell>
                           <TableCell className="text-right">
                             <Button
                               variant="outline"
@@ -445,15 +456,15 @@ export default function Updates() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {notifications?.filter(notification => !notification.dismissed).slice(0, 2).map(notification => (
+                    {notifications?.filter(notification => !notification.isDismissed).slice(0, 2).map(notification => (
                       <div key={notification.id} className="flex items-start p-3 rounded-lg border border-gray-200 bg-white">
                         <div className="mr-3 mt-1">
                           {getNotificationIcon(notification.type)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900">{notification.title}</p>
-                          <p className="text-sm text-gray-500">{notification.description}</p>
-                          <p className="text-xs text-gray-400 mt-1">{formatDate(notification.date)}</p>
+                          <p className="text-sm text-gray-500">{notification.message}</p>
+                          <p className="text-xs text-gray-400 mt-1">{formatDate(notification.createdAt)}</p>
                         </div>
                         <Button variant="ghost" size="sm">Dismiss</Button>
                       </div>
@@ -574,11 +585,11 @@ export default function Updates() {
                 </TableHeader>
                 <TableBody>
                   {pendingOrders?.map(order => (
-                    <TableRow key={order.id}>
+                    <TableRow key={order._id}>
                       <TableCell className="font-medium">{order.orderNumber}</TableCell>
                       <TableCell>{order.customerName}</TableCell>
                       <TableCell>{formatCurrency(order.amount)}</TableCell>
-                      <TableCell>{formatDate(order.date)}</TableCell>
+                      <TableCell>{formatDate(order.createdAt)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={
                           order.status === "paid" ? "bg-green-100 text-green-800" :
@@ -588,7 +599,7 @@ export default function Updates() {
                           {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{order.items}</TableCell>
+                      <TableCell>-</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="outline"

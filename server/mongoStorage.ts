@@ -646,6 +646,28 @@ export class MongoStorage implements IStorage {
     }
   }
 
+  async getOrdersNeedingDispatch(tenantId: number): Promise<any[]> {
+    try {
+      const OrderModel = this.getModel<IOrder>('Order');
+
+      // Convert tenantId to ObjectId if it's a string
+      const tenantIdObj = mongoose.isValidObjectId(tenantId) ?
+                          mongoose.Types.ObjectId.createFromHexString(tenantId.toString()) :
+                          tenantId;
+
+      // Find orders that are paid or processing (need to be shipped)
+      return await OrderModel.find({
+        tenantId: tenantIdObj,
+        status: { $in: ['paid', 'processing'] }
+      })
+        .sort({ createdAt: -1 })
+        .exec();
+    } catch (error) {
+      log(`Error getting orders needing dispatch: ${error}`, "mongodb");
+      return [];
+    }
+  }
+
   async countOrders(tenantId: number, fromDate?: Date, toDate?: Date): Promise<number> {
     try {
       const OrderModel = this.getModel<IOrder>('Order');

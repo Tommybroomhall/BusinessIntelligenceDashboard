@@ -50,11 +50,38 @@ router.get('/', ensureTenantAccess(), async (req: Request, res: Response) => {
   }
 });
 
+// GET pending orders (specific route - must come before /:id)
+router.get('/pending', ensureTenantAccess(), async (req: Request, res: Response) => {
+  try {
+    const storage = await getStorage();
+    console.log('Fetching pending orders for tenant:', req.tenantId);
+
+    // Get all orders and filter for pending/paid status
+    const allOrders = await storage.listOrders(req.tenantId, 1, 1000); // Get a large number to include all
+    const pendingOrders = allOrders.filter(order =>
+      order.status === 'pending' || order.status === 'paid' || order.status === 'processing'
+    );
+
+    console.log(`Found ${pendingOrders.length} pending orders`);
+    res.json(pendingOrders);
+  } catch (error) {
+    console.error("Error fetching pending orders:", error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+});
+
 // GET order by ID
 router.get('/:id', ensureTenantAccess(), async (req: Request, res: Response) => {
   try {
     const storage = await getStorage();
     const orderId = req.params.id;
+
+    // Special handling for pending-dispatch route
+    if (orderId === 'pending-dispatch') {
+      console.log('Handling pending-dispatch route specifically');
+      const orders = await storage.getOrdersNeedingDispatch(req.tenantId);
+      return res.json(orders);
+    }
 
     if (!orderId) {
       return res.status(400).json({ message: "Order ID is required" });

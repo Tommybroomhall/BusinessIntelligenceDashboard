@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/context/auth-context";
+import { useTenant } from "@/context/tenant-context";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 interface TopbarProps {
   onMenuToggle: () => void;
@@ -11,6 +13,7 @@ interface TopbarProps {
 export function Topbar({ onMenuToggle }: TopbarProps) {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { tenant } = useTenant();
   
   // Format the page title based on the current route
   const getPageTitle = () => {
@@ -57,7 +60,14 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         <h1 className="text-xl font-semibold text-gray-900">{getPageTitle()}</h1>
       </div>
       
-      <div className="mt-4 md:mt-0 flex items-center">
+      <div className="mt-4 md:mt-0 flex items-center space-x-4">
+        {/* Notification Bell */}
+        <NotificationBell
+          tenantId={tenant?.id?.toString()}
+          userId={user?.id?.toString()}
+          className="mr-2"
+        />
+
         {/* User Profile */}
         <div className="relative">
           <div className="flex items-center space-x-2">

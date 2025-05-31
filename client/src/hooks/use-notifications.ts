@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useToast } from './use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, getQueryFn } from '@/lib/queryClient';
 
 export interface Notification {
   id: string;
@@ -33,7 +33,6 @@ interface UseNotificationsOptions {
 interface NotificationsState {
   notifications: Notification[];
   unreadCount: number;
-  isConnected: boolean;
   isLoading: boolean;
   error: string | null;
 }
@@ -58,7 +57,6 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const [state, setState] = useState<NotificationsState>({
     notifications: [],
     unreadCount: 0,
-    isConnected: false,
     isLoading: false,
     error: null
   });
@@ -72,13 +70,26 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   } = useQuery({
     queryKey: ['notifications', tenantId, userId],
     queryFn: async () => {
+      console.log('🔍 Fetching notifications for:', { tenantId, userId });
       const params = new URLSearchParams();
       if (userId) params.append('userId', userId);
       params.append('includeRead', 'true');
       params.append('includeDismissed', 'false');
       
       const url = `/api/notifications?${params.toString()}`;
-      return apiRequest(url);
+      console.log('🔗 Notifications URL:', url);
+      
+      const response = await fetch(url, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch notifications: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('📦 Notifications response:', result);
+      return result;
     },
     enabled: !!tenantId,
     refetchInterval: autoRefreshInterval,
@@ -92,11 +103,24 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   } = useQuery({
     queryKey: ['notifications-count', tenantId, userId],
     queryFn: async () => {
+      console.log('🔢 Fetching notification count for:', { tenantId, userId });
       const params = new URLSearchParams();
       if (userId) params.append('userId', userId);
       
       const url = `/api/notifications/count?${params.toString()}`;
-      return apiRequest(url);
+      console.log('🔗 Count URL:', url);
+      
+      const response = await fetch(url, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch notification count: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('📊 Count response:', result);
+      return result;
     },
     enabled: !!tenantId,
     refetchInterval: autoRefreshInterval,
@@ -148,22 +172,19 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
     socket.on('connect', () => {
       console.log('Connected to notification service');
-      setState(prev => ({ ...prev, isConnected: true }));
-      
+
       // Join tenant room for notifications
       socket.emit('join-tenant', tenantId);
     });
 
     socket.on('disconnect', () => {
       console.log('Disconnected from notification service');
-      setState(prev => ({ ...prev, isConnected: false }));
     });
 
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
-      setState(prev => ({ 
-        ...prev, 
-        isConnected: false,
+      setState(prev => ({
+        ...prev,
         error: 'Failed to connect to real-time notifications'
       }));
     });
@@ -265,11 +286,16 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   // API methods
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
-      await apiRequest(`/api/notifications/${notificationId}`, {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
         method: 'PATCH',
         body: JSON.stringify({ isRead: true }),
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to mark notification as read: ${response.status}`);
+      }
 
       // Optimistically update local state
       setState(prev => ({
@@ -295,11 +321,16 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
   const dismiss = useCallback(async (notificationId: string) => {
     try {
-      await apiRequest(`/api/notifications/${notificationId}`, {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
         method: 'PATCH',
         body: JSON.stringify({ isDismissed: true }),
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to dismiss notification: ${response.status}`);
+      }
 
       // Optimistically update local state
       setState(prev => ({
@@ -321,11 +352,16 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await apiRequest('/api/notifications/mark-all-read', {
+      const response = await fetch('/api/notifications/mark-all-read', {
         method: 'POST',
         body: JSON.stringify({ userId }),
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to mark all notifications as read: ${response.status}`);
+      }
 
       setState(prev => ({
         ...prev,
@@ -353,7 +389,6 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   return {
     notifications: state.notifications,
     unreadCount: state.unreadCount,
-    isConnected: state.isConnected,
     isLoading: isLoadingNotifications || state.isLoading,
     error: state.error,
     markAsRead,
