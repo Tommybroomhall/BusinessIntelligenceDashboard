@@ -1,8 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { getStorage } from '../../storageFactory';
 import { ensureTenantAccess } from '../../middleware/tenantAccess';
+import analyticsRoutes from './analytics';
 
 const router = Router();
+
+// Register analytics sub-routes
+router.use('/analytics', analyticsRoutes);
 
 // Get top pages
 router.get("/toppages", ensureTenantAccess(), async (req: Request, res: Response) => {
@@ -41,37 +45,6 @@ router.get("/devices", ensureTenantAccess(), async (req: Request, res: Response)
   }
 });
 
-// Vercel Analytics API route
-router.get("/vercel-analytics", ensureTenantAccess(), async (req: Request, res: Response) => {
-  try {
-    const storage = await getStorage();
-    const { from, to, projectId, teamId } = req.query;
 
-    // Import the Vercel analytics service
-    const { fetchVercelAnalytics } = await import('../../services/vercel-analytics');
-
-    // Get tenant for API keys
-    const tenant = await storage.getTenant(req.tenantId);
-    if (!tenant) {
-      return res.status(404).json({ message: "Tenant not found" });
-    }
-
-    // Fetch analytics data from Vercel
-    const analyticsData = await fetchVercelAnalytics({
-      projectId: projectId as string || tenant.vercelProjectId as string,
-      teamId: teamId as string || tenant.vercelTeamId as string,
-      from: from ? new Date(from as string) : undefined,
-      to: to ? new Date(to as string) : undefined
-    });
-
-    res.json(analyticsData);
-  } catch (error) {
-    console.error("Error fetching Vercel analytics:", error);
-    res.status(500).json({
-      message: "Error fetching analytics data",
-      error: error.message
-    });
-  }
-});
 
 export default router;

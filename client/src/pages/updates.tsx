@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -43,7 +43,10 @@ import {
   EyeOff
 } from "lucide-react";
 import { OrderDetailsDialog } from "@/components/orders/order-details-dialog";
+import { UpdatesFilter } from "@/components/updates/UpdatesFilter";
+import { ViewAllModal } from "@/components/updates/ViewAllModal";
 import { useCurrencyFormatter } from "@/context/CurrencyContext";
+import { useToast } from "@/hooks/use-toast";
 
 // Define types for our data
 interface Message {
@@ -102,6 +105,24 @@ export default function Updates() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { formatCurrency } = useCurrencyFormatter();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Filter state
+  const [filters, setFilters] = useState({
+    type: 'all' as 'all' | 'messages' | 'stock' | 'orders' | 'notifications',
+    status: 'all' as 'all' | 'unread' | 'read' | 'active' | 'dismissed',
+    priority: 'all' as 'all' | 'low' | 'medium' | 'high' | 'urgent',
+    dateRange: 'all' as 'all' | 'today' | 'week' | 'month'
+  });
+
+  // View All Modal state
+  const [viewAllModal, setViewAllModal] = useState({
+    open: false,
+    type: null as 'messages' | 'stock' | 'orders' | 'notifications' | null,
+    title: '',
+    data: [] as any[]
+  });
 
   // Handle order click
   const handleOrderClick = (order: Order) => {
@@ -110,6 +131,148 @@ export default function Updates() {
     console.log('Selected order ID:', orderId);
     setSelectedOrderId(orderId);
     setDialogOpen(true);
+  };
+
+  // Handle individual message mark as read
+  const handleMarkMessageRead = async (messageId: string) => {
+    try {
+      const response = await fetch(`/api/messages/${messageId}/read`, {
+        method: 'PATCH',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to mark message as read');
+      }
+      
+      // Refresh messages data
+      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+      
+      toast({
+        title: "Success",
+        description: "Message marked as read",
+      });
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark message as read",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle View All modal
+  const handleViewAll = (type: 'messages' | 'stock' | 'orders' | 'notifications', title: string, data: any[]) => {
+    setViewAllModal({
+      open: true,
+      type,
+      title,
+      data
+    });
+  };
+
+  const closeViewAllModal = () => {
+    setViewAllModal({
+      open: false,
+      type: null,
+      title: '',
+      data: []
+    });
+  };
+
+  // Handle notification dismiss
+  const handleDismissNotification = async (notificationId: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isDismissed: true }),
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to dismiss notification');
+      }
+      
+      // Refresh notifications data
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      
+      toast({
+        title: "Success",
+        description: "Notification dismissed",
+      });
+    } catch (error) {
+      console.error('Error dismissing notification:', error);
+      toast({
+        title: "Error",
+        description: "Failed to dismiss notification",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle Mark All Read
+  const handleMarkAllRead = async () => {
+    try {
+      // Mark all notifications as read
+      const notificationsPromise = fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      // Mark all messages as read
+      const messagesPromise = fetch('/api/messages/mark-all-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      const [notificationsResponse, messagesResponse] = await Promise.all([
+        notificationsPromise,
+        messagesPromise
+      ]);
+      
+      if (!notificationsResponse.ok || !messagesResponse.ok) {
+        throw new Error('Failed to mark all items as read');
+      }
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      
+      toast({
+        title: "Success",
+        description: "All items marked as read",
+      });
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark all items as read",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter helper functions
+  const isInDateRange = (dateString: string, range: string): boolean => {
+    const date = new Date(dateString);
+    const now = new Date();
+    
+    switch (range) {
+      case 'today':
+        return date.toDateString() === now.toDateString();
+      case 'week':
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return date >= weekAgo;
+      case 'month':
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return date >= monthAgo;
+      default:
+        return true;
+    }
   };
 
   // Fetch messages data
@@ -124,9 +287,9 @@ export default function Updates() {
     staleTime: 60 * 1000, // 1 minute
   });
 
-  // Fetch pending orders data
-  const { data: pendingOrdersData, isLoading: isPendingOrdersLoading } = useQuery<Order[]>({
-    queryKey: ['/api/orders/pending'],
+  // Fetch orders needing dispatch data
+  const { data: ordersNeedingDispatchData, isLoading: isOrdersDispatchLoading } = useQuery<Order[]>({
+    queryKey: ['/api/orders/pending-dispatch'],
     staleTime: 60 * 1000, // 1 minute
   });
 
@@ -137,19 +300,62 @@ export default function Updates() {
   });
 
   // Check if data is available from API
-  const isDataMissing = !messagesData || !stockAlertsData || !pendingOrdersData || !notificationsResponse;
+  const isDataMissing = !messagesData || !stockAlertsData || !ordersNeedingDispatchData || !notificationsResponse;
 
   // If any data is missing, we'll show error messages instead of empty arrays
   const messages = messagesData;
   const stockAlerts = stockAlertsData;
-  const pendingOrders = pendingOrdersData;
+  const ordersNeedingDispatch = ordersNeedingDispatchData;
   const notifications = notificationsResponse?.notifications;
 
-  // Count unread items in each category (only if data is available)
-  const unreadMessages = messages ? messages.filter(message => !message.read).length : 0;
-  const criticalStockAlerts = stockAlerts ? stockAlerts.filter(alert => alert.currentStock <= 5).length : 0;
-  const dispatchableOrders = pendingOrders ? pendingOrders.filter(order => order.status === "paid").length : 0;
-  const activeNotifications = notifications ? notifications.filter(notification => !notification.isDismissed).length : 0;
+  // Apply filters to data
+  const filteredData = useMemo(() => {
+    let filteredMessages = messages || [];
+    let filteredStockAlerts = stockAlerts || [];
+    let filteredOrders = ordersNeedingDispatch || [];
+    let filteredNotifications = notifications || [];
+
+    // Apply date range filter
+    if (filters.dateRange !== 'all') {
+      filteredMessages = filteredMessages.filter(item => isInDateRange(item.date, filters.dateRange));
+      filteredStockAlerts = filteredStockAlerts.filter(item => isInDateRange(item.lastUpdated, filters.dateRange));
+      filteredOrders = filteredOrders.filter(item => isInDateRange(item.createdAt, filters.dateRange));
+      filteredNotifications = filteredNotifications.filter(item => isInDateRange(item.createdAt, filters.dateRange));
+    }
+
+    // Apply status filter
+    if (filters.status !== 'all') {
+      if (filters.status === 'unread') {
+        filteredMessages = filteredMessages.filter(item => !item.read);
+        filteredNotifications = filteredNotifications.filter(item => !item.isRead && !item.isDismissed);
+      } else if (filters.status === 'read') {
+        filteredMessages = filteredMessages.filter(item => item.read);
+        filteredNotifications = filteredNotifications.filter(item => item.isRead || item.isDismissed);
+      }
+    }
+
+    // Apply priority filter (only for notifications)
+    if (filters.priority !== 'all') {
+      filteredNotifications = filteredNotifications.filter(item => item.priority === filters.priority);
+    }
+
+    return {
+      messages: filteredMessages,
+      stockAlerts: filteredStockAlerts,
+      orders: filteredOrders,
+      notifications: filteredNotifications
+    };
+  }, [filters, messages, stockAlerts, ordersNeedingDispatch, notifications]);
+
+  // Count unread items in each category (use filtered data if filters are active, otherwise use original data)
+  const dataToCount = filters.type !== 'all' || filters.status !== 'all' || filters.priority !== 'all' || filters.dateRange !== 'all' 
+    ? filteredData 
+    : { messages, stockAlerts, orders: ordersNeedingDispatch, notifications };
+
+  const unreadMessages = dataToCount.messages ? dataToCount.messages.filter(message => !message.read).length : 0;
+  const criticalStockAlerts = dataToCount.stockAlerts ? dataToCount.stockAlerts.filter(alert => alert.currentStock <= 5).length : 0;
+  const dispatchableOrders = dataToCount.orders ? dataToCount.orders.length : 0; // Already filtered by backend to only include orders needing dispatch
+  const activeNotifications = dataToCount.notifications ? dataToCount.notifications.filter(notification => !notification.isDismissed).length : 0;
 
   const totalUpdates = unreadMessages + criticalStockAlerts + dispatchableOrders + activeNotifications;
 
@@ -192,11 +398,14 @@ export default function Updates() {
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-semibold text-gray-900">Updates</h1>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Filter className="mr-2 h-4 w-4" />
-            Filter
-          </Button>
-          <Button>
+          <UpdatesFilter 
+            filters={filters} 
+            onFiltersChange={setFilters} 
+          />
+          <Button 
+            onClick={handleMarkAllRead}
+            disabled={totalUpdates === 0}
+          >
             Mark All Read
           </Button>
         </div>
@@ -215,7 +424,13 @@ export default function Updates() {
                   <Mail className="h-8 w-8 text-blue-500 mr-2" />
                   <span className="text-2xl font-bold">{unreadMessages}</span>
                 </div>
-                <Button variant="ghost" size="sm">View All</Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => handleViewAll('messages', 'All Messages', filteredData.messages || [])}
+                >
+                  View All
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -231,7 +446,13 @@ export default function Updates() {
                   <Package className="h-8 w-8 text-red-500 mr-2" />
                   <span className="text-2xl font-bold">{criticalStockAlerts}</span>
                 </div>
-                <Button variant="ghost" size="sm">View All</Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => handleViewAll('stock', 'All Stock Alerts', filteredData.stockAlerts || [])}
+                >
+                  View All
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -247,7 +468,13 @@ export default function Updates() {
                   <ShoppingCart className="h-8 w-8 text-green-500 mr-2" />
                   <span className="text-2xl font-bold">{dispatchableOrders}</span>
                 </div>
-                <Button variant="ghost" size="sm">View All</Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => handleViewAll('orders', 'All Orders to Dispatch', filteredData.orders || [])}
+                >
+                  View All
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -263,7 +490,13 @@ export default function Updates() {
                   <Bell className="h-8 w-8 text-amber-500 mr-2" />
                   <span className="text-2xl font-bold">{activeNotifications}</span>
                 </div>
-                <Button variant="ghost" size="sm">View All</Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => handleViewAll('notifications', 'All System Notifications', filteredData.notifications || [])}
+                >
+                  View All
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -309,7 +542,7 @@ export default function Updates() {
         <TabsContent value="all" className="mt-6">
           <div className="grid grid-cols-1 gap-6">
             {/* Messages Section */}
-            {unreadMessages > 0 && (
+            {unreadMessages > 0 && (filters.type === 'all' || filters.type === 'messages') && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center">
@@ -319,7 +552,7 @@ export default function Updates() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {messages?.filter(message => !message.read).slice(0, 2).map(message => (
+                    {filteredData.messages?.filter(message => !message.read).slice(0, 2).map(message => (
                       <div key={message.id} className="flex items-start p-3 rounded-lg border border-gray-200 bg-white">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900">{message.title}</p>
@@ -332,7 +565,13 @@ export default function Updates() {
                       </div>
                     ))}
                     {unreadMessages > 2 && (
-                      <Button variant="outline" className="w-full">View All {unreadMessages} Messages</Button>
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => handleViewAll('messages', 'All Messages', filteredData.messages || [])}
+                      >
+                        View All {unreadMessages} Messages
+                      </Button>
                     )}
                   </div>
                 </CardContent>
@@ -340,7 +579,7 @@ export default function Updates() {
             )}
 
             {/* Stock Alerts Section */}
-            {criticalStockAlerts > 0 && (
+            {criticalStockAlerts > 0 && (filters.type === 'all' || filters.type === 'stock') && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center">
@@ -360,7 +599,7 @@ export default function Updates() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {stockAlerts?.filter(alert => alert.currentStock <= 5).slice(0, 3).map(alert => (
+                      {filteredData.stockAlerts?.filter(alert => alert.currentStock <= 5).slice(0, 3).map(alert => (
                         <TableRow key={alert.id}>
                           <TableCell className="font-medium">{alert.productName}</TableCell>
                           <TableCell>{alert.category}</TableCell>
@@ -378,14 +617,20 @@ export default function Updates() {
                     </TableBody>
                   </Table>
                   {criticalStockAlerts > 3 && (
-                    <Button variant="outline" className="w-full mt-4">View All {criticalStockAlerts} Stock Alerts</Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full mt-4"
+                      onClick={() => handleViewAll('stock', 'All Stock Alerts', filteredData.stockAlerts || [])}
+                    >
+                      View All {criticalStockAlerts} Stock Alerts
+                    </Button>
                   )}
                 </CardContent>
               </Card>
             )}
 
             {/* Orders Section */}
-            {dispatchableOrders > 0 && (
+            {dispatchableOrders > 0 && (filters.type === 'all' || filters.type === 'orders') && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center">
@@ -405,7 +650,7 @@ export default function Updates() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingOrders?.filter(order => order.status === "paid").slice(0, 3).map(order => (
+                      {filteredData.orders?.slice(0, 3).map(order => (
                         <TableRow key={order._id}>
                           <TableCell className="font-medium">{order.orderNumber}</TableCell>
                           <TableCell>{order.customerName}</TableCell>
@@ -439,14 +684,20 @@ export default function Updates() {
                     </TableBody>
                   </Table>
                   {dispatchableOrders > 3 && (
-                    <Button variant="outline" className="w-full mt-4">View All {dispatchableOrders} Orders</Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full mt-4"
+                      onClick={() => handleViewAll('orders', 'All Orders to Dispatch', filteredData.orders || [])}
+                    >
+                      View All {dispatchableOrders} Orders
+                    </Button>
                   )}
                 </CardContent>
               </Card>
             )}
 
             {/* System Notifications */}
-            {activeNotifications > 0 && (
+            {activeNotifications > 0 && (filters.type === 'all' || filters.type === 'notifications') && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center">
@@ -456,7 +707,7 @@ export default function Updates() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {notifications?.filter(notification => !notification.isDismissed).slice(0, 2).map(notification => (
+                    {filteredData.notifications?.filter(notification => !notification.isDismissed).slice(0, 2).map(notification => (
                       <div key={notification.id} className="flex items-start p-3 rounded-lg border border-gray-200 bg-white">
                         <div className="mr-3 mt-1">
                           {getNotificationIcon(notification.type)}
@@ -466,11 +717,23 @@ export default function Updates() {
                           <p className="text-sm text-gray-500">{notification.message}</p>
                           <p className="text-xs text-gray-400 mt-1">{formatDate(notification.createdAt)}</p>
                         </div>
-                        <Button variant="ghost" size="sm">Dismiss</Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDismissNotification(notification.id)}
+                        >
+                          Dismiss
+                        </Button>
                       </div>
                     ))}
                     {activeNotifications > 2 && (
-                      <Button variant="outline" className="w-full">View All {activeNotifications} Notifications</Button>
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => handleViewAll('notifications', 'All System Notifications', filteredData.notifications || [])}
+                      >
+                        View All {activeNotifications} Notifications
+                      </Button>
                     )}
                   </div>
                 </CardContent>
@@ -495,7 +758,7 @@ export default function Updates() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {messages?.map(message => (
+                {filteredData.messages?.map(message => (
                   <div key={message.id} className={`flex items-start p-4 rounded-lg border ${!message.read ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'}`}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
@@ -512,8 +775,26 @@ export default function Updates() {
                       </div>
                     </div>
                     <div className="ml-4 flex-shrink-0">
-                      <Button variant="ghost" size="sm">Mark Read</Button>
-                      <Button variant="ghost" size="sm">Reply</Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleMarkMessageRead(message.id)}
+                        disabled={message.read}
+                      >
+                        {message.read ? 'Read' : 'Mark Read'}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          toast({
+                            title: "Feature Coming Soon",
+                            description: "Reply functionality will be available in the next update",
+                          });
+                        }}
+                      >
+                        Reply
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -541,7 +822,7 @@ export default function Updates() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockAlerts?.map(alert => (
+                  {filteredData.stockAlerts?.map(alert => (
                     <TableRow key={alert.id}>
                       <TableCell className="font-medium">{alert.productName}</TableCell>
                       <TableCell>{alert.category}</TableCell>
@@ -584,7 +865,7 @@ export default function Updates() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pendingOrders?.map(order => (
+                  {filteredData.orders?.map(order => (
                     <TableRow key={order._id}>
                       <TableCell className="font-medium">{order.orderNumber}</TableCell>
                       <TableCell>{order.customerName}</TableCell>
@@ -639,6 +920,20 @@ export default function Updates() {
         orderId={selectedOrderId}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+      />
+
+      {/* View All Modal */}
+      <ViewAllModal
+        open={viewAllModal.open}
+        type={viewAllModal.type}
+        title={viewAllModal.title}
+        data={viewAllModal.data}
+        onClose={closeViewAllModal}
+        onMarkMessageRead={handleMarkMessageRead}
+        onDismissNotification={handleDismissNotification}
+        onOrderClick={handleOrderClick}
+        formatCurrency={formatCurrency}
+        formatDate={formatDate}
       />
     </div>
   );

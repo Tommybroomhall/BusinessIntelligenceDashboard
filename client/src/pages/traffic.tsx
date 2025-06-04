@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useVercelAnalytics } from "@/hooks/use-vercel-analytics";
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
@@ -48,39 +48,41 @@ export default function Traffic() {
 
   const [timePeriod, setTimePeriod] = useState<"week" | "month" | "year">("month");
 
-  // Fetch traffic data from Vercel Analytics
-  const {
-    data: vercelData,
-    isLoading: vercelLoading,
-    isError: vercelError,
-    dateRange: analyticsDates,
-    updateDateRange
-  } = useVercelAnalytics({
-    from: dateRange.from,
-    to: dateRange.to
+  // Fetch GA4 analytics data
+  const { data: analyticsData, isLoading: analyticsLoading, error: analyticsError } = useQuery({
+    queryKey: [
+      '/api/traffic/analytics',
+      dateRange.from?.toISOString(),
+      dateRange.to?.toISOString()
+    ],
+    staleTime: 60 * 1000, // 1 minute
   });
 
-  // Legacy traffic data (until migration is complete)
+  // Legacy traffic data (for sessions vs conversions chart)
   const { data: legacyData, isLoading } = useQuery({
     queryKey: ['/api/traffic', dateRange.from?.toISOString(), dateRange.to?.toISOString(), timePeriod],
     staleTime: 60 * 1000, // 1 minute
   });
 
-  // Use Vercel data if available, otherwise fallback to legacy API data
-  const topPagesData = vercelData?.topPages || [];
+  // Extract data from GA4 analytics response
+  const ga4Data = analyticsData?.success ? analyticsData.data : null;
+  const topPagesData = ga4Data?.topPages?.map(page => ({
+    page: page.path,
+    views: page.pageViews
+  })) || [];
 
   // Check if data is available from API
   const isLegacyDataMissing = !legacyData?.sessionsData;
-  const isVercelDataMissing = !vercelData?.deviceDistribution;
+  const isAnalyticsDataMissing = !ga4Data;
 
   // Sessions vs Conversions data from API - will be null if missing
   const sessionsData = legacyData?.sessionsData;
 
-  // Device distribution data from Vercel Analytics - will be null if missing
-  const deviceData = vercelData?.deviceDistribution?.map(device => ({
+  // Device distribution data from GA4 Analytics
+  const deviceData = ga4Data?.deviceDistribution?.map(device => ({
     name: device.device || 'Unknown',
     value: device.percentage
-  }));
+  })) || [];
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -91,10 +93,6 @@ export default function Traffic() {
             dateRange={dateRange}
             onDateRangeChange={(range) => {
               setDateRange(range);
-              // Also update Vercel Analytics date range
-              if (updateDateRange) {
-                updateDateRange(range);
-              }
             }}
           />
           <Button variant="outline">
@@ -104,24 +102,24 @@ export default function Traffic() {
         </div>
       </div>
 
-      {(vercelError || isVercelDataMissing || isLegacyDataMissing) && (
+      {(analyticsError || isAnalyticsDataMissing || isLegacyDataMissing) && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Missing Data from MongoDB</AlertTitle>
+          <AlertTitle>Analytics Data Issue</AlertTitle>
           <AlertDescription>
-            {vercelError ? (
-              "Couldn't load analytics data from Vercel. Please check your API credentials in settings."
+            {analyticsError ? (
+              "Couldn't load analytics data from Google Analytics. Please check your GA4 configuration in settings."
             ) : (
-              "Some traffic data could not be loaded from MongoDB. This page will not function correctly until all required data is available."
+              "Some traffic data could not be loaded. This page will not function correctly until all required data is available."
             )}
           </AlertDescription>
         </Alert>
       )}
 
-      {vercelLoading && (
+      {analyticsLoading && (
         <div className="flex items-center justify-center p-6 border rounded-lg bg-gray-50 mb-6">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-          <span className="ml-3 text-gray-600">Loading analytics data...</span>
+          <span className="ml-3 text-gray-600">Loading Google Analytics data...</span>
         </div>
       )}
 
@@ -134,7 +132,7 @@ export default function Traffic() {
               <div>
                 <p className="text-sm font-medium text-gray-500">Page Views</p>
                 <h3 className="text-2xl font-bold mt-1">
-                  {vercelData?.pageViews ? vercelData.pageViews.toLocaleString() : '0'}
+                  {ga4Data?.metrics?.pageViews ? ga4Data.metrics.pageViews.toLocaleString() : '0'}
                 </h3>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
@@ -151,7 +149,7 @@ export default function Traffic() {
               <div>
                 <p className="text-sm font-medium text-gray-500">Unique Visitors</p>
                 <h3 className="text-2xl font-bold mt-1">
-                  {vercelData?.visitors ? vercelData.visitors.toLocaleString() : '0'}
+                  {ga4Data?.metrics?.visitors ? ga4Data.metrics.visitors.toLocaleString() : '0'}
                 </h3>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
@@ -161,14 +159,14 @@ export default function Traffic() {
           </CardContent>
         </Card>
 
-        {/* Error Rate */}
+        {/* Bounce Rate */}
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Error Rate</p>
+                <p className="text-sm font-medium text-gray-500">Bounce Rate</p>
                 <h3 className="text-2xl font-bold mt-1">
-                  {vercelData?.errorRate !== undefined ? `${(vercelData.errorRate * 100).toFixed(2)}%` : '0%'}
+                  {ga4Data?.metrics?.bounceRate !== undefined ? `${(ga4Data.metrics.bounceRate * 100).toFixed(1)}%` : '0%'}
                 </h3>
               </div>
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600">
@@ -187,7 +185,7 @@ export default function Traffic() {
                 <h3 className="text-2xl font-bold mt-1">
                   {deviceData && deviceData.length > 0
                     ? `${deviceData.find(d => d.name.toLowerCase() === 'mobile')?.value || 0}%`
-                    : (isVercelDataMissing ? 'No Data' : '0%')
+                    : (isAnalyticsDataMissing ? 'No Data' : '0%')
                   }
                 </h3>
               </div>
@@ -270,7 +268,7 @@ export default function Traffic() {
               ) : (
                 <div className="flex items-center justify-center w-full h-full bg-red-50 border border-red-200 text-red-800 rounded-md p-4">
                   <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-                  <p className="font-medium">No device data available from MongoDB</p>
+                  <p className="font-medium">No device data available from Google Analytics</p>
                 </div>
               )}
             </div>
@@ -345,7 +343,7 @@ export default function Traffic() {
               ) : (
                 <div className="flex items-center justify-center h-full bg-red-50 border border-red-200 text-red-800 rounded-md p-4">
                   <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-                  <p className="font-medium">No sessions data available from MongoDB</p>
+                  <p className="font-medium">No sessions data available from database</p>
                 </div>
               )}
             </div>

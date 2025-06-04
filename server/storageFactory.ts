@@ -40,8 +40,15 @@ export async function getStorage(clientId?: string): Promise<IStorage> {
     return defaultStorageInstance;
   }
 
-  // Check if MongoDB credentials are available
-  if (process.env.MONGODB_USERNAME && process.env.MONGODB_PASSWORD && process.env.MONGODB_CLUSTER) {
+  // Check if MongoDB is available (either via credentials or URI, or already connected)
+  const hasMongoCredentials = process.env.MONGODB_USERNAME && process.env.MONGODB_PASSWORD && process.env.MONGODB_CLUSTER;
+  const hasMongoUri = process.env.MONGODB_URI;
+  
+  // Also check if mongoose is already connected
+  const mongoose = require('mongoose');
+  const isMongooseConnected = mongoose.connection.readyState === 1;
+  
+  if (hasMongoCredentials || hasMongoUri || isMongooseConnected) {
     try {
       log("Using MongoDB storage implementation", "storage");
       const mongoStorage = new MongoStorage();

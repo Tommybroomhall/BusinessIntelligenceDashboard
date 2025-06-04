@@ -121,27 +121,118 @@ router.get('/', ensureTenantAccess(), async (req: Request, res: Response) => {
 });
 
 /**
- * Get unread notification count (includes dispatch alerts)
+ * Get comprehensive unread count (matches Updates page)
+ * Includes: notifications, messages, stock alerts, dispatch orders
  */
 router.get('/count', ensureTenantAccess(), async (req: Request, res: Response) => {
   try {
     const storage = await getStorage();
     const { userId } = req.query;
 
-    // Get regular unread notification count
-    const regularCount = await storage.getUnreadNotificationCount(
-      req.tenantId,
-      userId as string
-    );
+    // Get regular unread notification count (non-dismissed notifications)
+    const notifications = await storage.getNotifications(req.tenantId, userId as string);
+    const activeNotifications = notifications.filter(notification => !notification.isDismissed).length;
 
-    // Get orders that need dispatching (these are always "unread" until shipped)
+    // Get orders that need dispatching
     const ordersNeedingDispatch = await storage.getOrdersNeedingDispatch(req.tenantId);
     const dispatchCount = ordersNeedingDispatch.length;
 
-    // Total unread count
-    const totalCount = regularCount + dispatchCount;
+    // Mock messages count (in a real app, this would come from database)
+    const generateMockMessages = (tenantId: number) => [
+      {
+        id: `msg-${tenantId}-1`,
+        title: 'New Customer Inquiry',
+        content: 'A customer has asked about product availability and shipping times.',
+        sender: 'support@example.com',
+        date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+        read: false
+      },
+      {
+        id: `msg-${tenantId}-2`,
+        title: 'Order Confirmation Required',
+        content: 'Order #12345 requires manual confirmation due to payment verification.',
+        sender: 'orders@example.com',
+        date: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+        read: false
+      },
+      {
+        id: `msg-${tenantId}-3`,
+        title: 'Supplier Update',
+        content: 'Your regular supplier has updated their pricing structure.',
+        sender: 'supplier@example.com',
+        date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        read: true
+      }
+    ];
+    const messages = generateMockMessages(req.tenantId);
+    const unreadMessages = messages.filter(message => !message.read).length;
 
-    res.json({ count: totalCount });
+    // Mock stock alerts count (in a real app, this would come from database)
+    const generateMockStockAlerts = () => [
+      {
+        id: 'stock-1',
+        productName: 'Wireless Bluetooth Headphones',
+        category: 'Electronics',
+        currentStock: 3,
+        threshold: 10,
+        lastUpdated: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 'stock-2',
+        productName: 'Organic Cotton T-Shirt',
+        category: 'Clothing',
+        currentStock: 5,
+        threshold: 15,
+        lastUpdated: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 'stock-3',
+        productName: 'Stainless Steel Water Bottle',
+        category: 'Home & Garden',
+        currentStock: 2,
+        threshold: 8,
+        lastUpdated: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 'stock-4',
+        productName: 'Yoga Mat',
+        category: 'Sports & Fitness',
+        currentStock: 7,
+        threshold: 12,
+        lastUpdated: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 'stock-5',
+        productName: 'Coffee Maker',
+        category: 'Appliances',
+        currentStock: 1,
+        threshold: 6,
+        lastUpdated: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 'stock-6',
+        productName: 'Running Shoes',
+        category: 'Sports & Fitness',
+        currentStock: 8,
+        threshold: 20,
+        lastUpdated: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
+      }
+    ];
+    const stockAlerts = generateMockStockAlerts();
+    const criticalStockAlerts = stockAlerts.filter(alert => alert.currentStock <= 5).length;
+
+    // Total comprehensive count (matches Updates page calculation)
+    const totalCount = unreadMessages + criticalStockAlerts + dispatchCount + activeNotifications;
+
+    res.json({ 
+      count: totalCount,
+      breakdown: {
+        messages: unreadMessages,
+        stockAlerts: criticalStockAlerts,
+        orders: dispatchCount,
+        notifications: activeNotifications
+      }
+    });
 
   } catch (error) {
     log(`Error fetching notification count: ${error}`, 'notifications');

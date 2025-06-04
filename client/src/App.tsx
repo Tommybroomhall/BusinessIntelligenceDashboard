@@ -12,12 +12,14 @@ import Customers from "@/pages/customers";
 import Products from "@/pages/Products";
 import Updates from "@/pages/updates";
 import Settings from "@/pages/settings";
+import OrderDetail from "@/pages/order-detail";
+import Profile from "@/pages/profile";
 import Login from "@/pages/login";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 import { TenantProvider } from "@/context/tenant-context";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { useEffect } from "react";
-import { initVercelAnalytics, initGA } from "./lib/analytics";
+import { initGA } from "./lib/analytics";
 import { useAnalytics } from "./hooks/use-analytics";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -101,6 +103,18 @@ function Router() {
         </DashboardLayout>
       </Route>
 
+      <Route path="/profile">
+        <DashboardLayout>
+          <ProtectedRoute component={Profile} />
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/orders/:id">
+        <DashboardLayout>
+          <ProtectedRoute component={OrderDetail} />
+        </DashboardLayout>
+      </Route>
+
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
@@ -108,11 +122,8 @@ function Router() {
 }
 
 function App() {
-  // Initialize Vercel Analytics and Google Analytics when app loads
+  // Initialize Google Analytics when app loads
   useEffect(() => {
-    // Initialize Vercel Analytics
-    initVercelAnalytics();
-
     // Initialize Google Analytics if measurement ID is present
     if (import.meta.env.VITE_GA_MEASUREMENT_ID) {
       initGA();

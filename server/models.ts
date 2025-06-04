@@ -34,9 +34,11 @@ export interface ITenant extends Document {
   stripeSubscriptionId?: string;
   stripeSecretKey?: string;
   ga4Key?: string;
-  vercelApiToken?: string;
-  vercelProjectId?: string;
-  vercelTeamId?: string;
+  ga4PropertyId?: string;
+  // Resend Email configuration
+  resendApiKey?: string;
+  resendFromDomain?: string;
+  resendFromName?: string;
   // Webhook configuration
   webhookSecret?: string;
   webhookEnabled?: boolean;
@@ -47,6 +49,8 @@ export interface ITenant extends Document {
   };
   webhookRetryAttempts?: number;
   webhookTimeoutMs?: number;
+  // Traffic data source configuration
+  trafficDataSource?: 'google_analytics';
 }
 
 export interface IUser extends Document {
@@ -147,6 +151,47 @@ export interface INotification extends Document {
   updatedAt: Date;
 }
 
+// New interface for cached analytics data
+export interface IAnalyticsCache extends Document {
+  tenantId: mongoose.Types.ObjectId;
+  source: 'google_analytics' | 'vercel_analytics';
+  dataType: 'traffic_sources' | 'page_views' | 'device_distribution' | 'top_pages';
+  data: any; // Flexible schema for different data types
+  dateRange: {
+    from: Date;
+    to: Date;
+  };
+  createdAt: Date;
+  expiresAt: Date;
+  isValid: boolean;
+}
+
+// Interface for Google Analytics data cache
+export interface IGoogleAnalyticsData extends Document {
+  tenantId: mongoose.Types.ObjectId;
+  propertyId: string;
+  dateRange: {
+    from: Date;
+    to: Date;
+  };
+  metrics: {
+    pageViews: number;
+    sessions: number;
+    users: number;
+    bounceRate: number;
+  };
+  dimensions: {
+    trafficSources: Array<{ source: string; medium: string; sessions: number }>;
+    topPages: Array<{ page: string; pageViews: number; uniquePageViews: number }>;
+    deviceCategory: Array<{ deviceCategory: string; sessions: number; percentage: number }>;
+    countries: Array<{ country: string; sessions: number }>;
+  };
+  createdAt: Date;
+  expiresAt: Date;
+}
+
+
+
 // Define schemas
 const TenantSchema = new Schema<ITenant>({
   name: { type: String, required: true },
@@ -165,9 +210,11 @@ const TenantSchema = new Schema<ITenant>({
   stripeSubscriptionId: String,
   stripeSecretKey: String,
   ga4Key: String,
-  vercelApiToken: String,
-  vercelProjectId: String,
-  vercelTeamId: String,
+  ga4PropertyId: String,
+  // Resend Email configuration
+  resendApiKey: String,
+  resendFromDomain: String,
+  resendFromName: String,
   // Webhook configuration
   webhookSecret: String,
   webhookEnabled: { type: Boolean, default: false },
@@ -177,7 +224,13 @@ const TenantSchema = new Schema<ITenant>({
     payments: { type: Boolean, default: true }
   },
   webhookRetryAttempts: { type: Number, default: 3 },
-  webhookTimeoutMs: { type: Number, default: 30000 }
+  webhookTimeoutMs: { type: Number, default: 30000 },
+  // Traffic data source configuration
+  trafficDataSource: {
+    type: String,
+    enum: ['google_analytics'],
+    default: 'google_analytics'
+  }
 });
 
 const UserSchema = new Schema<IUser>({
@@ -286,6 +339,76 @@ const NotificationSchema = new Schema<INotification>({
   updatedAt: { type: Date, default: Date.now }
 });
 
+// Analytics cache schema
+const AnalyticsCacheSchema = new Schema<IAnalyticsCache>({
+  tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  source: {
+    type: String,
+    enum: ['google_analytics', 'vercel_analytics'],
+    required: true
+  },
+  dataType: {
+    type: String,
+    enum: ['traffic_sources', 'page_views', 'device_distribution', 'top_pages'],
+    required: true
+  },
+  data: { type: Schema.Types.Mixed, required: true },
+  dateRange: {
+    from: { type: Date, required: true },
+    to: { type: Date, required: true }
+  },
+  createdAt: { type: Date, default: Date.now },
+  expiresAt: { type: Date, required: true },
+  isValid: { type: Boolean, default: true }
+});
+
+// Google Analytics data schema
+const GoogleAnalyticsDataSchema = new Schema<IGoogleAnalyticsData>({
+  tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  propertyId: { type: String, required: true },
+  dateRange: {
+    from: { type: Date, required: true },
+    to: { type: Date, required: true }
+  },
+  metrics: {
+    pageViews: { type: Number, default: 0 },
+    sessions: { type: Number, default: 0 },
+    users: { type: Number, default: 0 },
+    bounceRate: { type: Number, default: 0 }
+  },
+  dimensions: {
+    trafficSources: [{
+      source: String,
+      medium: String,
+      sessions: Number
+    }],
+    topPages: [{
+      page: String,
+      pageViews: Number,
+      uniquePageViews: Number
+    }],
+    deviceCategory: [{
+      deviceCategory: String,
+      sessions: Number,
+      percentage: Number
+    }],
+    countries: [{
+      country: String,
+      sessions: Number
+    }]
+  },
+  createdAt: { type: Date, default: Date.now },
+  expiresAt: { type: Date, required: true }
+});
+
+
+
+// Add indexes for performance
+AnalyticsCacheSchema.index({ tenantId: 1, source: 1, dataType: 1, 'dateRange.from': 1, 'dateRange.to': 1 });
+AnalyticsCacheSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+GoogleAnalyticsDataSchema.index({ tenantId: 1, 'dateRange.from': 1, 'dateRange.to': 1 });
+GoogleAnalyticsDataSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 // Create and export models
 export const Tenant: Model<ITenant> = mongoose.models.Tenant || mongoose.model<ITenant>('Tenant', TenantSchema);
 export const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
@@ -296,3 +419,5 @@ export const OrderItem: Model<IOrderItem> = mongoose.models.OrderItem || mongoos
 export const TrafficData: Model<ITrafficData> = mongoose.models.TrafficData || mongoose.model<ITrafficData>('TrafficData', TrafficDataSchema);
 export const ActivityLog: Model<IActivityLog> = mongoose.models.ActivityLog || mongoose.model<IActivityLog>('ActivityLog', ActivityLogSchema);
 export const Notification: Model<INotification> = mongoose.models.Notification || mongoose.model<INotification>('Notification', NotificationSchema);
+export const AnalyticsCache: Model<IAnalyticsCache> = mongoose.models.AnalyticsCache || mongoose.model<IAnalyticsCache>('AnalyticsCache', AnalyticsCacheSchema);
+export const GoogleAnalyticsData: Model<IGoogleAnalyticsData> = mongoose.models.GoogleAnalyticsData || mongoose.model<IGoogleAnalyticsData>('GoogleAnalyticsData', GoogleAnalyticsDataSchema);

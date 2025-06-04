@@ -53,7 +53,9 @@ import {
   CreditCard,
   Globe,
   Server,
-  Webhook
+  Webhook,
+  Trash2,
+  Mail
 } from "lucide-react";
 import {
   Alert,
@@ -118,14 +120,9 @@ export default function Settings() {
 
   // API keys and integration state
   const [integrations, setIntegrations] = useState({
-    // Vercel Analytics
-    vercelApiToken: "",
-    vercelProjectId: "",
-    vercelTeamId: "",
-    vercelEnabled: false,
-
     // Google Analytics
     ga4MeasurementId: "",
+    ga4PropertyId: "",
     ga4Enabled: false,
 
     // Stripe
@@ -134,6 +131,12 @@ export default function Settings() {
     stripePriceId: "",
     stripeEnabled: false,
 
+    // Resend Email
+    resendApiKey: "",
+    resendFromDomain: "",
+    resendFromName: "",
+    resendEnabled: false,
+
     // Database
     databaseUrl: "",
     databaseEnabled: true,
@@ -141,7 +144,10 @@ export default function Settings() {
     // System
     sessionSecret: "",
     port: "5000",
-    nodeEnv: "development"
+    nodeEnv: "development",
+
+    // Traffic Data Source
+    trafficDataSource: "google_analytics"
   });
 
   // New user state
@@ -217,6 +223,7 @@ export default function Settings() {
     vercelApiToken: false,
     stripeSecretKey: false,
     stripePublicKey: false,
+    resendApiKey: false,
     databaseUrl: false,
     sessionSecret: false
   });
@@ -243,34 +250,104 @@ export default function Settings() {
     e.preventDefault();
 
     try {
-      // In a real app, this would update the settings in the database and .env file
+      // Update environment variables/integrations
+      const response = await fetch('/api/settings/env', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(integrations),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update settings');
+      }
+
+      const result = await response.json();
+
+      // Update traffic data source preferences if they've changed
+      if (integrations.trafficDataSource) {
+        const trafficResponse = await fetch('/api/traffic/analytics/preferences', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            source: integrations.trafficDataSource
+          }),
+        });
+
+        if (!trafficResponse.ok) {
+          console.warn('Failed to update traffic preferences, but other settings were saved');
+        }
+      }
+
       toast({
         title: "Settings updated",
-        description: "Your integration settings have been successfully saved.",
+        description: `Successfully updated: ${result.updated?.join(', ') || 'integration settings'}`,
       });
     } catch (error) {
+      console.error('Error updating integration settings:', error);
       toast({
         title: "Error",
-        description: "Failed to update integration settings.",
+        description: error.message || "Failed to update integration settings.",
         variant: "destructive",
       });
     }
   };
 
   // Test connection function
-  const testConnection = (service: string) => {
+  const testConnection = async (service: string) => {
+    const serviceMap: { [key: string]: string } = {
+      'Vercel Analytics': 'vercel',
+      'Google Analytics': 'google-analytics',
+      'Stripe': 'stripe',
+      'MongoDB': 'mongodb',
+      'Cloudinary': 'cloudinary',
+      'Resend': 'resend'
+    };
+
+    const apiService = serviceMap[service] || service.toLowerCase();
+
     toast({
       title: `Testing ${service} connection`,
       description: "Attempting to connect...",
     });
 
-    // Simulate API call
-    setTimeout(() => {
-      toast({
-        title: "Connection successful",
-        description: `Successfully connected to ${service}.`,
+    try {
+      const response = await fetch(`/api/settings/test-connection/${apiService}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
       });
-    }, 1500);
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Connection successful",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Connection failed",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error testing connection:', error);
+      toast({
+        title: "Connection test failed",
+        description: "Unable to test connection. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle invite user
@@ -294,6 +371,80 @@ export default function Settings() {
       toast({
         title: "Error",
         description: "Failed to send invitation.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Test traffic connection
+  const testTrafficConnection = async () => {
+    toast({
+      title: "Testing traffic connection",
+      description: "Attempting to connect...",
+    });
+
+    try {
+      const response = await fetch('/api/settings/test-traffic-connection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Traffic connection successful",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Traffic connection failed",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error testing traffic connection:', error);
+      toast({
+        title: "Traffic connection test failed",
+        description: "Unable to test traffic connection. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Clear traffic cache
+  const clearTrafficCache = async () => {
+    toast({
+      title: "Clearing traffic cache",
+      description: "Clearing traffic cache...",
+    });
+
+    try {
+      const response = await fetch('/api/settings/clear-traffic-cache', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear traffic cache');
+      }
+
+      toast({
+        title: "Traffic cache cleared",
+        description: "Traffic cache has been cleared successfully.",
+      });
+    } catch (error) {
+      console.error('Error clearing traffic cache:', error);
+      toast({
+        title: "Error",
+        description: "Failed to clear traffic cache. Please try again.",
         variant: "destructive",
       });
     }
@@ -475,136 +626,7 @@ export default function Settings() {
 
             <form onSubmit={submitIntegrations}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* Vercel Analytics Integration */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <BarChart4 className="h-5 w-5 text-primary" />
-                        <CardTitle>Vercel Analytics</CardTitle>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Label htmlFor="vercel-enabled" className="text-sm">Enabled</Label>
-                        <Switch
-                          id="vercel-enabled"
-                          checked={integrations.vercelEnabled}
-                          onCheckedChange={(checked) => setIntegrations({...integrations, vercelEnabled: checked})}
-                        />
-                      </div>
-                    </div>
-                    <CardDescription>
-                      Connect to Vercel Analytics to track website traffic and performance metrics.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="vercel-api-token" className="flex items-center justify-between">
-                        <span>API Token</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2"
-                          type="button"
-                          onClick={() => toggleVisibility('vercelApiToken')}
-                        >
-                          {showSecrets.vercelApiToken ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </Button>
-                      </Label>
-                      <div className="flex">
-                        <Input
-                          id="vercel-api-token"
-                          type={showSecrets.vercelApiToken ? "text" : "password"}
-                          value={integrations.vercelApiToken}
-                          onChange={(e) => setIntegrations({...integrations, vercelApiToken: e.target.value})}
-                          placeholder="Enter your Vercel API token"
-                          className="rounded-r-none"
-                          disabled={!integrations.vercelEnabled}
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-l-none"
-                          type="button"
-                          onClick={() => copyToClipboard(integrations.vercelApiToken)}
-                          disabled={!integrations.vercelEnabled}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Get this from Vercel dashboard → Profile → Settings → Tokens
-                      </p>
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="vercel-project-id">Project ID</Label>
-                      <div className="flex">
-                        <Input
-                          id="vercel-project-id"
-                          value={integrations.vercelProjectId}
-                          onChange={(e) => setIntegrations({...integrations, vercelProjectId: e.target.value})}
-                          placeholder="Enter your Vercel project ID"
-                          className="rounded-r-none"
-                          disabled={!integrations.vercelEnabled}
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-l-none"
-                          type="button"
-                          onClick={() => copyToClipboard(integrations.vercelProjectId)}
-                          disabled={!integrations.vercelEnabled}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Find this in your Vercel project settings
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="vercel-team-id">Team ID (Optional)</Label>
-                      <div className="flex">
-                        <Input
-                          id="vercel-team-id"
-                          value={integrations.vercelTeamId}
-                          onChange={(e) => setIntegrations({...integrations, vercelTeamId: e.target.value})}
-                          placeholder="Enter your Vercel team ID"
-                          className="rounded-r-none"
-                          disabled={!integrations.vercelEnabled}
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-l-none"
-                          type="button"
-                          onClick={() => copyToClipboard(integrations.vercelTeamId)}
-                          disabled={!integrations.vercelEnabled}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Required only if your project is part of a team
-                      </p>
-                    </div>
-
-                    <div className="pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
-                        onClick={() => testConnection('Vercel Analytics')}
-                        disabled={!integrations.vercelEnabled}
-                        className="w-full"
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Test Connection
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
 
                 {/* Google Analytics Integration */}
                 <Card>
@@ -629,7 +651,7 @@ export default function Settings() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ga4-measurement-id">Measurement ID</Label>
+                      <Label htmlFor="ga4-measurement-id">Measurement ID (Client-side)</Label>
                       <div className="flex">
                         <Input
                           id="ga4-measurement-id"
@@ -651,11 +673,49 @@ export default function Settings() {
                         </Button>
                       </div>
                       <p className="text-xs text-gray-500">
-                        Get this from Google Analytics → Admin → Property → Data Streams → Web
+                        For website tracking. Get this from Google Analytics → Admin → Property → Data Streams → Web
                       </p>
                     </div>
 
-                    <div className="pt-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="ga4-property-id">Property ID (Server-side)</Label>
+                      <div className="flex">
+                        <Input
+                          id="ga4-property-id"
+                          value={integrations.ga4PropertyId}
+                          onChange={(e) => setIntegrations({...integrations, ga4PropertyId: e.target.value})}
+                          placeholder="123456789"
+                          className="rounded-r-none"
+                          disabled={!integrations.ga4Enabled}
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="rounded-l-none"
+                          type="button"
+                          onClick={() => copyToClipboard(integrations.ga4PropertyId)}
+                          disabled={!integrations.ga4Enabled}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        For dashboard analytics. Get this from Google Analytics → Admin → Property Settings
+                      </p>
+                    </div>
+
+                    <div className="pt-2 space-y-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => testConnection('Google Analytics')}
+                        disabled={!integrations.ga4Enabled || !integrations.ga4PropertyId}
+                        className="w-full"
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Test Connection
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -670,227 +730,433 @@ export default function Settings() {
                     </div>
                   </CardContent>
                 </Card>
-
-                {/* Stripe Integration */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <CreditCard className="h-5 w-5 text-primary" />
-                        <CardTitle>Stripe</CardTitle>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Label htmlFor="stripe-enabled" className="text-sm">Enabled</Label>
-                        <Switch
-                          id="stripe-enabled"
-                          checked={integrations.stripeEnabled}
-                          onCheckedChange={(checked) => setIntegrations({...integrations, stripeEnabled: checked})}
-                        />
-                      </div>
-                    </div>
-                    <CardDescription>
-                      Connect to Stripe for payment processing and subscription management.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="stripe-secret-key" className="flex items-center justify-between">
-                        <span>Secret Key</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2"
-                          type="button"
-                          onClick={() => toggleVisibility('stripeSecretKey')}
-                        >
-                          {showSecrets.stripeSecretKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </Button>
-                      </Label>
-                      <div className="flex">
-                        <Input
-                          id="stripe-secret-key"
-                          type={showSecrets.stripeSecretKey ? "text" : "password"}
-                          value={integrations.stripeSecretKey}
-                          onChange={(e) => setIntegrations({...integrations, stripeSecretKey: e.target.value})}
-                          placeholder="sk_test_..."
-                          className="rounded-r-none"
-                          disabled={!integrations.stripeEnabled}
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-l-none"
-                          type="button"
-                          onClick={() => copyToClipboard(integrations.stripeSecretKey)}
-                          disabled={!integrations.stripeEnabled}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Used for server-side API calls to Stripe
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="stripe-public-key" className="flex items-center justify-between">
-                        <span>Public Key</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2"
-                          type="button"
-                          onClick={() => toggleVisibility('stripePublicKey')}
-                        >
-                          {showSecrets.stripePublicKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </Button>
-                      </Label>
-                      <div className="flex">
-                        <Input
-                          id="stripe-public-key"
-                          type={showSecrets.stripePublicKey ? "text" : "password"}
-                          value={integrations.stripePublicKey}
-                          onChange={(e) => setIntegrations({...integrations, stripePublicKey: e.target.value})}
-                          placeholder="pk_test_..."
-                          className="rounded-r-none"
-                          disabled={!integrations.stripeEnabled}
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-l-none"
-                          type="button"
-                          onClick={() => copyToClipboard(integrations.stripePublicKey)}
-                          disabled={!integrations.stripeEnabled}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Used for client-side Stripe elements
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="stripe-price-id">Price ID (for subscriptions)</Label>
-                      <div className="flex">
-                        <Input
-                          id="stripe-price-id"
-                          value={integrations.stripePriceId}
-                          onChange={(e) => setIntegrations({...integrations, stripePriceId: e.target.value})}
-                          placeholder="price_..."
-                          className="rounded-r-none"
-                          disabled={!integrations.stripeEnabled}
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-l-none"
-                          type="button"
-                          onClick={() => copyToClipboard(integrations.stripePriceId)}
-                          disabled={!integrations.stripeEnabled}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        The default subscription price ID
-                      </p>
-                    </div>
-
-                    <div className="pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
-                        onClick={() => testConnection('Stripe')}
-                        disabled={!integrations.stripeEnabled}
-                        className="w-full"
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Test Connection
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Database Configuration */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Database className="h-5 w-5 text-primary" />
-                        <CardTitle>Database</CardTitle>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Label htmlFor="database-enabled" className="text-sm">Enabled</Label>
-                        <Switch
-                          id="database-enabled"
-                          checked={integrations.databaseEnabled}
-                          onCheckedChange={(checked) => setIntegrations({...integrations, databaseEnabled: checked})}
-                        />
-                      </div>
-                    </div>
-                    <CardDescription>
-                      Configure your PostgreSQL database connection.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="database-url" className="flex items-center justify-between">
-                        <span>Connection String</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2"
-                          type="button"
-                          onClick={() => toggleVisibility('databaseUrl')}
-                        >
-                          {showSecrets.databaseUrl ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </Button>
-                      </Label>
-                      <div className="flex">
-                        <Input
-                          id="database-url"
-                          type={showSecrets.databaseUrl ? "text" : "password"}
-                          value={integrations.databaseUrl}
-                          onChange={(e) => setIntegrations({...integrations, databaseUrl: e.target.value})}
-                          placeholder="postgres://username:password@hostname:port/database_name"
-                          className="rounded-r-none"
-                          disabled={!integrations.databaseEnabled}
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-l-none"
-                          type="button"
-                          onClick={() => copyToClipboard(integrations.databaseUrl)}
-                          disabled={!integrations.databaseEnabled}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        PostgreSQL connection string in the format: postgres://username:password@hostname:port/database_name
-                      </p>
-                    </div>
-
-                    <div className="pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
-                        onClick={() => testConnection('Database')}
-                        disabled={!integrations.databaseEnabled}
-                        className="w-full"
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Test Connection
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
+
+              {/* Traffic Data Source Selection */}
+              <Card className="mb-6">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center space-x-2">
+                    <Globe className="h-5 w-5 text-primary" />
+                    <CardTitle>Traffic Analytics</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Traffic analytics are provided by Google Analytics with pixel tracking.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="traffic-data-source">Analytics Source</Label>
+                    <Select
+                      value={integrations.trafficDataSource || 'google_analytics'}
+                      onValueChange={(value) => setIntegrations({...integrations, trafficDataSource: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select traffic data source" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="google_analytics">
+                          <div className="flex items-center space-x-2">
+                            <Globe className="h-4 w-4" />
+                            <span>Google Analytics</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      Google Analytics provides comprehensive traffic analytics with pixel tracking
+                    </p>
+                  </div>
+
+                  {integrations.ga4Enabled && integrations.ga4MeasurementId && integrations.ga4PropertyId && (
+                    <div className="space-y-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <div className="text-sm font-medium text-green-700">Google Analytics Fully Configured</div>
+                      </div>
+                      <p className="text-xs text-green-600">
+                        Both client-side tracking and server-side analytics are configured
+                      </p>
+                    </div>
+                  )}
+
+                  {integrations.ga4Enabled && integrations.ga4MeasurementId && !integrations.ga4PropertyId && (
+                    <div className="space-y-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <div className="text-sm font-medium text-yellow-700">Partial Configuration</div>
+                      </div>
+                      <p className="text-xs text-yellow-600">
+                        Client-side tracking is active, but Property ID is needed for dashboard analytics
+                      </p>
+                    </div>
+                  )}
+
+                  {!integrations.ga4Enabled && (
+                    <div className="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                        <div className="text-sm font-medium text-gray-700">Google Analytics Disabled</div>
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        Enable Google Analytics above to start tracking traffic data
+                      </p>
+                    </div>
+                  )}
+
+
+                </CardContent>
+              </Card>
+
+              {/* Stripe Integration */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <CreditCard className="h-5 w-5 text-primary" />
+                      <CardTitle>Stripe</CardTitle>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="stripe-enabled" className="text-sm">Enabled</Label>
+                      <Switch
+                        id="stripe-enabled"
+                        checked={integrations.stripeEnabled}
+                        onCheckedChange={(checked) => setIntegrations({...integrations, stripeEnabled: checked})}
+                      />
+                    </div>
+                  </div>
+                  <CardDescription>
+                    Connect to Stripe for payment processing and subscription management.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="stripe-secret-key" className="flex items-center justify-between">
+                      <span>Secret Key</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2"
+                        type="button"
+                        onClick={() => toggleVisibility('stripeSecretKey')}
+                      >
+                        {showSecrets.stripeSecretKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </Button>
+                    </Label>
+                    <div className="flex">
+                      <Input
+                        id="stripe-secret-key"
+                        type={showSecrets.stripeSecretKey ? "text" : "password"}
+                        value={integrations.stripeSecretKey}
+                        onChange={(e) => setIntegrations({...integrations, stripeSecretKey: e.target.value})}
+                        placeholder="sk_test_..."
+                        className="rounded-r-none"
+                        disabled={!integrations.stripeEnabled}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-l-none"
+                        type="button"
+                        onClick={() => copyToClipboard(integrations.stripeSecretKey)}
+                        disabled={!integrations.stripeEnabled}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Used for server-side API calls to Stripe
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="stripe-public-key" className="flex items-center justify-between">
+                      <span>Public Key</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2"
+                        type="button"
+                        onClick={() => toggleVisibility('stripePublicKey')}
+                      >
+                        {showSecrets.stripePublicKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </Button>
+                    </Label>
+                    <div className="flex">
+                      <Input
+                        id="stripe-public-key"
+                        type={showSecrets.stripePublicKey ? "text" : "password"}
+                        value={integrations.stripePublicKey}
+                        onChange={(e) => setIntegrations({...integrations, stripePublicKey: e.target.value})}
+                        placeholder="pk_test_..."
+                        className="rounded-r-none"
+                        disabled={!integrations.stripeEnabled}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-l-none"
+                        type="button"
+                        onClick={() => copyToClipboard(integrations.stripePublicKey)}
+                        disabled={!integrations.stripeEnabled}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Used for client-side Stripe elements
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="stripe-price-id">Price ID (for subscriptions)</Label>
+                    <div className="flex">
+                      <Input
+                        id="stripe-price-id"
+                        value={integrations.stripePriceId}
+                        onChange={(e) => setIntegrations({...integrations, stripePriceId: e.target.value})}
+                        placeholder="price_..."
+                        className="rounded-r-none"
+                        disabled={!integrations.stripeEnabled}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-l-none"
+                        type="button"
+                        onClick={() => copyToClipboard(integrations.stripePriceId)}
+                        disabled={!integrations.stripeEnabled}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      The default subscription price ID
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      onClick={() => testConnection('Stripe')}
+                      disabled={!integrations.stripeEnabled}
+                      className="w-full"
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Test Connection
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Resend Email Integration */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Mail className="h-5 w-5 text-primary" />
+                      <CardTitle>Resend Email</CardTitle>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="resend-enabled" className="text-sm">Enabled</Label>
+                      <Switch
+                        id="resend-enabled"
+                        checked={integrations.resendEnabled}
+                        onCheckedChange={(checked) => setIntegrations({...integrations, resendEnabled: checked})}
+                      />
+                    </div>
+                  </div>
+                  <CardDescription>
+                    Connect to Resend for email sending and management capabilities.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="resend-api-key" className="flex items-center justify-between">
+                      <span>API Key</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2"
+                        type="button"
+                        onClick={() => toggleVisibility('resendApiKey')}
+                      >
+                        {showSecrets.resendApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </Button>
+                    </Label>
+                    <div className="flex">
+                      <Input
+                        id="resend-api-key"
+                        type={showSecrets.resendApiKey ? "text" : "password"}
+                        value={integrations.resendApiKey}
+                        onChange={(e) => setIntegrations({...integrations, resendApiKey: e.target.value})}
+                        placeholder="re_..."
+                        className="rounded-r-none"
+                        disabled={!integrations.resendEnabled}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-l-none"
+                        type="button"
+                        onClick={() => copyToClipboard(integrations.resendApiKey)}
+                        disabled={!integrations.resendEnabled}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Get this from Resend → API Keys
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="resend-from-domain">From Domain</Label>
+                    <div className="flex">
+                      <Input
+                        id="resend-from-domain"
+                        value={integrations.resendFromDomain}
+                        onChange={(e) => setIntegrations({...integrations, resendFromDomain: e.target.value})}
+                        placeholder="your-domain.com"
+                        className="rounded-r-none"
+                        disabled={!integrations.resendEnabled}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-l-none"
+                        type="button"
+                        onClick={() => copyToClipboard(integrations.resendFromDomain)}
+                        disabled={!integrations.resendEnabled}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Domain verified in your Resend account
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="resend-from-name">From Name</Label>
+                    <div className="flex">
+                      <Input
+                        id="resend-from-name"
+                        value={integrations.resendFromName}
+                        onChange={(e) => setIntegrations({...integrations, resendFromName: e.target.value})}
+                        placeholder="Your Business Name"
+                        className="rounded-r-none"
+                        disabled={!integrations.resendEnabled}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-l-none"
+                        type="button"
+                        onClick={() => copyToClipboard(integrations.resendFromName)}
+                        disabled={!integrations.resendEnabled}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Display name for outgoing emails
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      onClick={() => testConnection('Resend')}
+                      disabled={!integrations.resendEnabled}
+                      className="w-full"
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Test Connection
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Database Configuration */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Database className="h-5 w-5 text-primary" />
+                      <CardTitle>Database</CardTitle>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor="database-enabled" className="text-sm">Enabled</Label>
+                      <Switch
+                        id="database-enabled"
+                        checked={integrations.databaseEnabled}
+                        onCheckedChange={(checked) => setIntegrations({...integrations, databaseEnabled: checked})}
+                      />
+                    </div>
+                  </div>
+                  <CardDescription>
+                    Configure your MongoDB database connection.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="database-url" className="flex items-center justify-between">
+                      <span>Connection String</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2"
+                        type="button"
+                        onClick={() => toggleVisibility('databaseUrl')}
+                      >
+                        {showSecrets.databaseUrl ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </Button>
+                    </Label>
+                    <div className="flex">
+                      <Input
+                        id="database-url"
+                        type={showSecrets.databaseUrl ? "text" : "password"}
+                        value={integrations.databaseUrl}
+                        onChange={(e) => setIntegrations({...integrations, databaseUrl: e.target.value})}
+                        placeholder="mongodb+srv://username:password@cluster.mongodb.net/database"
+                        className="rounded-r-none"
+                        disabled={!integrations.databaseEnabled}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="rounded-l-none"
+                        type="button"
+                        onClick={() => copyToClipboard(integrations.databaseUrl)}
+                        disabled={!integrations.databaseEnabled}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      MongoDB connection string in the format: mongodb+srv://username:password@cluster.mongodb.net/database
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      onClick={() => testConnection('MongoDB')}
+                      disabled={!integrations.databaseEnabled}
+                      className="w-full"
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Test Connection
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* System Settings */}
               <Card className="mb-6">

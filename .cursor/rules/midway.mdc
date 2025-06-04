@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+You've reached the 25-tool-call checkpoint. Pause and review:
+Assumptions: Re-examine all assumptions you've made. Explicitly validate them against the current codebase and original objective. If any are uncertain or unstated, flag and resolve them before proceeding.
+Code Integrity: Ensure all your edits maintain consistency with the architecture, patterns, and style of the existing codebase. Check for side effects or breakage in related components.
+Task Alignment: Confirm that you're still on track with the core objective. Reorient your focus if there's drift.
+Corrections: Where assumptions were wrong or incomplete, go back, correct the work, and re-test. Don't move forward until everything aligns.
+Only once your review is complete and the above is resolved, resume progress. Precision wins.

@@ -1,5 +1,3 @@
-import { inject } from '@vercel/analytics';
-
 // Define gtag for TypeScript
 declare global {
   interface Window {
@@ -7,11 +5,6 @@ declare global {
     gtag: (...args: any[]) => void;
   }
 }
-
-// Initialize Vercel Analytics
-export const initVercelAnalytics = () => {
-  inject();
-};
 
 // Initialize Google Analytics
 export const initGA = () => {
@@ -41,14 +34,13 @@ export const initGA = () => {
 
 // Track page views
 export const trackPageView = (url: string) => {
-  // Vercel Analytics automatically tracks page views
   console.log(`Page view tracked: ${url}`);
-  
+
   // Track in Google Analytics if available
   if (typeof window !== 'undefined' && window.gtag) {
     const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
     if (!measurementId) return;
-    
+
     window.gtag('config', measurementId, {
       page_path: url
     });

@@ -11,9 +11,12 @@
     "test:mongodb": "tsx scripts/test/test-mongodb.ts",
     "test:customer-orders": "tsx scripts/test/test-customer-orders.ts",
     "test:auth": "tsx scripts/test/test-auth-persistence.ts",
-    "db:load-dummy-data": "tsx scripts/db/load-dummy-data.ts"
+    "test:ga4": "tsx scripts/test/test-ga4-integration.ts",
+    "db:load-dummy-data": "tsx scripts/db/load-dummy-data.ts",
+    "db:seed-analytics": "node scripts/db/seed-analytics.js"
   },
   "dependencies": {
+    "@google-analytics/data": "^5.1.0",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@radix-ui/react-accordion": "^1.2.4",
@@ -49,7 +52,6 @@
     "@tanstack/react-query": "^5.60.5",
     "@tanstack/react-query-persist-client": "^5.79.0",
     "@types/socket.io": "^3.0.1",
-    "@vercel/analytics": "^1.5.0",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -77,6 +79,7 @@
     "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.3",
+    "resend": "^4.5.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "stripe": "^18.1.0",

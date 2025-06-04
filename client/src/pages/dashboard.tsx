@@ -3,9 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { SalesOverview } from "@/components/dashboard/sales-overview";
 import { SalesChart } from "@/components/dashboard/sales-chart";
 import { TrafficChannelsChart } from "@/components/dashboard/traffic-channels-chart";
+import TrafficSources from "@/components/dashboard/traffic-sources";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { PopularProducts } from "@/components/dashboard/popular-products";
 import { StockLevelWidget } from "@/components/dashboard/stock-level-widget";
+import { OrderStatusChart } from "@/components/dashboard/order-status-chart";
+import { ProductCategoryChart } from "@/components/dashboard/product-category-chart";
+import { CustomerAcquisitionChart } from "@/components/dashboard/customer-acquisition-chart";
+import { TopProductsChart } from "@/components/dashboard/top-products-chart";
 import { useDashboardData, useDashboardComponent } from "@/hooks/use-dashboard-data";
 import { apiRequest } from "@/lib/queryClient";
 import { Wifi, WifiOff, Pause, Clock, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
@@ -308,7 +313,7 @@ export default function Dashboard() {
         <SalesOverview />
       </div>
 
-      {/* Charts Row */}
+      {/* Charts Row 1 - Sales and Traffic */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         {salesChartData ? (
           <SalesChart data={salesChartData} />
@@ -318,16 +323,19 @@ export default function Dashboard() {
           </div>
         )}
 
-        {trafficChannelsData ? (
-          <TrafficChannelsChart
-            data={trafficChannelsData}
-            total={trafficTotal}
-          />
-        ) : (
-          <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 flex items-center justify-center h-64">
-            <p className="font-medium">No traffic data available from MongoDB</p>
-          </div>
-        )}
+        <TrafficSources />
+      </div>
+
+      {/* Charts Row 2 - Order Status and Product Categories */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <OrderStatusChart />
+        <ProductCategoryChart />
+      </div>
+
+      {/* Charts Row 3 - Customer Acquisition and Top Products */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <CustomerAcquisitionChart />
+        <TopProductsChart />
       </div>
 
       {/* Activity, Products, and Stock Levels */}

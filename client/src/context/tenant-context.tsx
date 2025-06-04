@@ -23,42 +23,50 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [tenant, setTenantState] = useState<Tenant | null>(null);
 
   // Fetch tenant data
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['/api/tenant'],
-    retry: false,
-    enabled: false, // We'll enable it manually
-    onSuccess: (data) => {
-      if (data) {
-        setTenantState(data);
-        localStorage.setItem('tenant', JSON.stringify(data));
+    queryFn: async () => {
+      const response = await fetch('/api/tenant', {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch tenant');
       }
+      
+      const tenantData = await response.json();
+      
+      // Map _id to id for interface compatibility
+      return {
+        ...tenantData,
+        id: tenantData._id || tenantData.id
+      };
     },
-    onError: () => {
-      // On error, try to use localStorage as fallback
-      const storedTenant = localStorage.getItem('tenant');
-      if (storedTenant) {
-        setTenantState(JSON.parse(storedTenant));
-      }
-    }
+    retry: 1,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
+  // Update state when data changes (modern React Query pattern)
   useEffect(() => {
-    // Try to fetch the tenant from the API
-    const loadTenant = async () => {
-      try {
-        await refetch();
-      } catch (error) {
-        console.error('Error loading tenant:', error);
-        // Fallback to localStorage
-        const storedTenant = localStorage.getItem('tenant');
-        if (storedTenant) {
-          setTenantState(JSON.parse(storedTenant));
+    if (data) {
+      console.log('🏢 Tenant data loaded:', data);
+      setTenantState(data);
+      localStorage.setItem('tenant', JSON.stringify(data));
+    } else if (error) {
+      console.error('Error loading tenant:', error);
+      // Fallback to localStorage
+      const storedTenant = localStorage.getItem('tenant');
+      if (storedTenant) {
+        try {
+          const parsedTenant = JSON.parse(storedTenant);
+          setTenantState(parsedTenant);
+          console.log('🏢 Using stored tenant data:', parsedTenant);
+        } catch (e) {
+          console.error('Failed to parse stored tenant data:', e);
         }
       }
-    };
-
-    loadTenant();
-  }, [refetch]);
+    }
+  }, [data, error]);
 
   const setTenant = (newTenant: Tenant) => {
     localStorage.setItem('tenant', JSON.stringify(newTenant));

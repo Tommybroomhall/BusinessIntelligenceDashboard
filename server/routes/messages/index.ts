@@ -47,13 +47,27 @@ const generateMockMessages = (tenantId: number) => [
   }
 ];
 
+// In-memory storage for tracking read status per tenant (in production this would be in database)
+const messageReadStatus: { [tenantId: number]: { [messageId: string]: boolean } } = {};
+
+// Helper to get messages with current read status
+const getMessagesWithReadStatus = (tenantId: number) => {
+  const messages = generateMockMessages(tenantId);
+  const readStatus = messageReadStatus[tenantId] || {};
+  
+  return messages.map(message => ({
+    ...message,
+    read: readStatus[message.id] !== undefined ? readStatus[message.id] : message.read
+  }));
+};
+
 // GET all messages
 router.get('/', ensureTenantAccess(), async (req: Request, res: Response) => {
   try {
     console.log('Fetching messages for tenant:', req.tenantId);
     
-    // Generate mock messages for this tenant
-    const messages = generateMockMessages(req.tenantId);
+    // Get messages with current read status
+    const messages = getMessagesWithReadStatus(req.tenantId);
     
     console.log(`Generated ${messages.length} mock messages`);
     res.json(messages);
@@ -66,7 +80,7 @@ router.get('/', ensureTenantAccess(), async (req: Request, res: Response) => {
 // GET unread messages count
 router.get('/unread-count', ensureTenantAccess(), async (req: Request, res: Response) => {
   try {
-    const messages = generateMockMessages(req.tenantId);
+    const messages = getMessagesWithReadStatus(req.tenantId);
     const unreadCount = messages.filter(message => !message.read).length;
     
     res.json({ count: unreadCount });
@@ -81,12 +95,56 @@ router.patch('/:id/read', ensureTenantAccess(), async (req: Request, res: Respon
   try {
     const { id } = req.params;
     
-    // In a real app, this would update the database
-    console.log(`Marking message ${id} as read for tenant ${req.tenantId}`);
+    // Initialize tenant storage if it doesn't exist
+    if (!messageReadStatus[req.tenantId]) {
+      messageReadStatus[req.tenantId] = {};
+    }
+    
+    // Mark message as read
+    messageReadStatus[req.tenantId][id] = true;
+    
+    console.log(`Marked message ${id} as read for tenant ${req.tenantId}`);
     
     res.json({ message: 'Message marked as read' });
   } catch (error) {
     console.error("Error marking message as read:", error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+});
+
+// POST mark all messages as read
+router.post('/mark-all-read', ensureTenantAccess(), async (req: Request, res: Response) => {
+  try {
+    console.log(`Marking all messages as read for tenant ${req.tenantId}`);
+    
+    // Initialize tenant storage if it doesn't exist
+    if (!messageReadStatus[req.tenantId]) {
+      messageReadStatus[req.tenantId] = {};
+    }
+    
+    // Get all messages for this tenant
+    const messages = generateMockMessages(req.tenantId);
+    let markedCount = 0;
+    
+    // Mark all messages as read
+    messages.forEach(message => {
+      const currentStatus = messageReadStatus[req.tenantId][message.id];
+      const wasUnread = currentStatus !== undefined ? !currentStatus : !message.read;
+      
+      if (wasUnread) {
+        messageReadStatus[req.tenantId][message.id] = true;
+        markedCount++;
+      }
+    });
+    
+    console.log(`Marked ${markedCount} messages as read for tenant ${req.tenantId}`);
+    
+    res.json({ 
+      message: 'All messages marked as read',
+      count: markedCount
+    });
+  } catch (error) {
+    console.error("Error marking all messages as read:", error);
     res.status(500).json({ message: "An error occurred" });
   }
 });

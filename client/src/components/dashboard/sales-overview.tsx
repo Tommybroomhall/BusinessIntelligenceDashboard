@@ -10,6 +10,7 @@ import {
   BarChart2,
   TrendingUp,
   TrendingDown,
+  Truck,
 } from "lucide-react";
 
 type TimeFrame = "7d" | "30d";
@@ -159,6 +160,19 @@ export function SalesOverview() {
     refetchOnMount: 'always',
   });
 
+  // Fetch orders needing dispatch data
+  const { data: ordersNeedingDispatch, isLoading: isOrdersDispatchLoading } = useQuery({
+    queryKey: ['orders-needing-dispatch'],
+    queryFn: () => fetchSalesData('/api/orders/pending-dispatch'),
+    staleTime: 2 * 60 * 1000, // 2 minutes - data is fresh for 2 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache for 30 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: 5 * 60 * 1000, // Auto-refresh every 5 minutes
+    placeholderData: (previousData) => previousData,
+    refetchOnMount: 'always',
+  });
+
   const isLoading = isCurrentLoading || isPreviousLoading;
 
   // Calculate trends
@@ -230,7 +244,7 @@ export function SalesOverview() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SalesKPI
           title="Total Revenue"
           value={isLoading ? formatCurrency(0) : formatCurrency(currentData?.revenue || 0)}
@@ -262,6 +276,13 @@ export function SalesOverview() {
             period: previousPeriodLabel,
           }}
           isLoading={isLoading}
+        />
+
+        <SalesKPI
+          title="Orders to Dispatch"
+          value={isOrdersDispatchLoading ? '0' : (ordersNeedingDispatch?.length || 0).toLocaleString()}
+          icon={<Truck className="h-5 w-5" />}
+          isLoading={isOrdersDispatchLoading}
         />
       </div>
     </div>

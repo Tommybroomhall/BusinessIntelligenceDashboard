@@ -56,9 +56,6 @@ export interface Tenant extends BaseEntity {
   stripeSubscriptionId?: string;
   stripeSecretKey?: string;
   ga4Key?: string;
-  vercelApiToken?: string;
-  vercelProjectId?: string;
-  vercelTeamId?: string;
   // Webhook configuration
   webhookSecret?: string;
   webhookEnabled?: boolean;

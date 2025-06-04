@@ -55,8 +55,16 @@ export class MongoStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: number): Promise<any> {
+  async getUser(id: number | string): Promise<any> {
     try {
+      // Handle environment admin IDs (string IDs that are not ObjectIds)
+      if (typeof id === 'string' && !mongoose.Types.ObjectId.isValid(id)) {
+        // This is likely an environment admin ID like 'env_dev_admin'
+        // Environment admins are not stored in the database
+        log(`Environment admin ID ${id} not found in database (this is expected)`, "mongodb");
+        return undefined;
+      }
+
       const UserModel = this.getModel<IUser>('User');
       return await UserModel.findById(id);
     } catch (error) {
@@ -86,8 +94,16 @@ export class MongoStorage implements IStorage {
     }
   }
 
-  async updateUser(id: number, userData: any): Promise<any> {
+  async updateUser(id: number | string, userData: any): Promise<any> {
     try {
+      // Handle environment admin IDs (string IDs that are not ObjectIds)
+      if (typeof id === 'string' && !mongoose.Types.ObjectId.isValid(id)) {
+        // This is likely an environment admin ID like 'env_dev_admin'
+        // Environment admins cannot be updated in the database
+        log(`Cannot update environment admin ${id} - not stored in database`, "mongodb");
+        return undefined;
+      }
+
       const UserModel = this.getModel<IUser>('User');
       return await UserModel.findByIdAndUpdate(
         id,
