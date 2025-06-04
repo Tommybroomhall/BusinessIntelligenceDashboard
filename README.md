@@ -1,217 +1,291 @@
-# Business Intelligence Dashboard
+<div align="center">
 
-A modern business intelligence dashboard built with React, Express, and TypeScript. This application provides a comprehensive view of business metrics, sales data, customer information, and more.
+# 🔥 Business Intelligence Dashboard
 
-![Dashboard Screenshot](https://via.placeholder.com/800x450.png?text=Business+Intelligence+Dashboard)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
+[![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/react-%2320232a.svg?style=flat&logo=react&logoColor=%2361DAFB)](https://reactjs.org/)
+[![Express.js](https://img.shields.io/badge/express.js-%23404d59.svg?style=flat&logo=express&logoColor=%2361DAFB)](https://expressjs.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=flat&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=flat&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![TailwindCSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
-## Features
+*A comprehensive, modern business intelligence platform built with cutting-edge technologies*
 
-- **Interactive Dashboard**: Real-time overview of key business metrics
-- **Sales Analytics**: Track revenue, orders, and sales performance
-- **Customer Management**: View and manage customer information
-- **Product Tracking**: Monitor product performance and inventory
-- **Traffic Analysis**: Analyze website traffic and user behavior
-- **User Authentication**: Secure login and role-based access control
-- **Multi-tenant Support**: Manage multiple businesses with separate database isolation
-- **Flexible Database Architecture**: Support for both single database and multiple database deployments
+**🚧 Currently in Development for Production Clients**
 
-## Tech Stack
+[🚀 Live Demo](#demo) • [📖 Documentation](#installation) • [🎯 Features](#features) • [🛠️ Tech Stack](#technologies-used)
 
-- **Frontend**: React, TypeScript, TailwindCSS, Shadcn UI
-- **Backend**: Express.js, Node.js
-- **Database**: MongoDB with Mongoose
-- **Authentication**: Passport.js
-- **Analytics**: Google Analytics integration
-- **Payment Processing**: Stripe integration
+</div>
 
-## Prerequisites
+---
 
-Before you begin, ensure you have the following installed:
-- [Node.js](https://nodejs.org/) (v18 or higher)
-- [npm](https://www.npmjs.com/) (v8 or higher)
-- MongoDB access (Atlas cluster recommended)
+## 🌟 Introduction
 
-## Getting Started
+The **Business Intelligence Dashboard** is a sophisticated, full-stack e-commerce platform currently being developed for production clients as a comprehensive **Shopify replacement**. This enterprise-grade solution combines powerful business intelligence with a complete e-commerce management system, designed to provide clients with a unified platform for managing their online businesses.
 
-### Installation
+**🎯 Commercial Development**: This project is actively being built for real clients who have chosen to work with Tom for a complete e-commerce solution. The platform will replace their current Shopify setup with a custom, more powerful alternative that includes advanced analytics, multi-tenant architecture, and custom business logic tailored to each client's needs.
 
-1. Clone the repository:
+**🚀 Upcoming Features in Development**:
+- **AI-Powered Admin Assistant** - Intelligent system to assist administrators with daily tasks and decision-making
+- **Shipping Provider Integration** - Seamless integration with major shipping carriers and logistics providers
+- **Custom Business Logic Engine** - Tailored workflows and automations specific to each client's requirements
+- **Advanced Inventory Management** - Real-time stock tracking with predictive analytics
+
+**💡 Production Impact**: 
+- Eliminates Shopify's transaction fees and limitations
+- Provides complete control over e-commerce functionality
+- Scales with business growth without platform restrictions
+- Offers unlimited customization possibilities for unique business requirements
+
+**🔧 Technical Excellence**: Built with modern TypeScript, leveraging React 18 with concurrent features, Express.js with middleware architecture, and MongoDB with optimized aggregation pipelines for superior performance and scalability.
+
+---
+
+## ✨ Features
+
+- 📊 **Real-Time Analytics Dashboard** - Live KPI monitoring with WebSocket updates and interactive charts powered by Recharts
+- 👥 **Customer Relationship Management** - Comprehensive customer profiles with order history and behavioral analytics
+- 🛍️ **E-commerce Integration** - Product catalog management with Stripe payment processing and inventory tracking
+- 📈 **Sales Performance Tracking** - Revenue analytics, conversion funnels, and predictive forecasting
+- 🌐 **Traffic Analytics** - Google Analytics 4 integration with custom event tracking and user journey mapping
+- 🔐 **Enterprise Security** - JWT-based authentication with Passport.js and role-based access control (RBAC)
+- 🏢 **Multi-Tenant Architecture** - Scalable SaaS platform with database isolation and tenant-specific configurations
+- 📱 **Responsive Design** - Mobile-first approach using Tailwind CSS and Radix UI components
+
+---
+
+## 🖼️ Demo/Screenshots
+
+### Dashboard Overview
+![Dashboard Screenshot](images/dashboard-overview.png)
+*Main dashboard showcasing real-time metrics and interactive visualizations*
+
+### Analytics Deep Dive
+![Analytics Screenshot](images/analytics-dashboard.png)
+*Comprehensive analytics view with drill-down capabilities*
+
+> **📁 Asset Placement**: Place screenshot images in the `images/` directory in your repository root. For animated demos, use `images/demo.gif`.
+
+---
+
+## 🚀 Installation
+
+### Prerequisites
+
+Ensure you have the following installed on your development machine:
+
+- **Node.js** (v18.0.0 or higher) - [Download here](https://nodejs.org/)
+- **npm** (v8.0.0 or higher) - Comes with Node.js
+- **MongoDB** - [Atlas cluster](https://www.mongodb.com/cloud/atlas) recommended
+- **Git** - [Download here](https://git-scm.com/)
+
+### Quick Start
+
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/BusinessIntelligenceDashboard.git
+   git clone https://github.com/Tommybroomhall/BusinessIntelligenceDashboard.git
    cd BusinessIntelligenceDashboard
    ```
 
-2. Install dependencies:
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-### Configuration
-
-1. Create a `.env` file in the root directory with the following variables:
+3. **Environment configuration**
+   ```bash
+   # Create environment file
+   cp .env.example .env
+   
+   # Edit .env with your configuration
+   nano .env
    ```
-   # MongoDB Configuration
+
+4. **Configure environment variables**
+   ```env
+   # Database Configuration
    MONGODB_USERNAME=your_mongodb_username
    MONGODB_PASSWORD=your_mongodb_password
    MONGODB_CLUSTER=your_cluster.mongodb.net
    MONGODB_DATABASE=businessdash
-
+   
    # Authentication
-   SESSION_SECRET=your_session_secret
-
-   # Optional: Stripe Integration
+   SESSION_SECRET=your_super_secure_session_secret
+   
+   # Optional Integrations
    STRIPE_SECRET_KEY=your_stripe_secret_key
    VITE_STRIPE_PUBLIC_KEY=your_stripe_public_key
-
-   # Optional: Google Analytics
    VITE_GA_MEASUREMENT_ID=your_ga_measurement_id
    ```
 
-   Note: If you don't have MongoDB set up, the application will use in-memory storage for demonstration purposes.
+5. **Start the development server**
+   ```bash
+   npm run dev
+   ```
 
-### Running the Application
+6. **Access the application**
+   - Navigate to `http://localhost:5000`
+   - Use demo credentials: `admin@businessdash.com` / `password123`
 
-#### Development Mode
+---
 
-To run the application in development mode:
+## 💻 Usage
 
-```bash
-# On all platforms (Windows, macOS, Linux)
-npm run dev
+### Basic Navigation
+```typescript
+// Access the dashboard API programmatically
+const dashboardData = await fetch('/api/dashboard', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+
+// Real-time updates via WebSocket
+const socket = io('ws://localhost:5000');
+socket.on('dashboard-update', (data) => {
+  updateDashboard(data);
+});
 ```
 
-The application will be available at [http://localhost:5000](http://localhost:5000).
-
-#### Production Build
-
-To create a production build:
-
-```bash
-npm run build
+### API Integration Example
+```javascript
+// Create a new customer
+const newCustomer = await fetch('/api/customers', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: 'John Doe',
+    email: 'john@example.com',
+    company: 'Acme Corp'
+  })
+});
 ```
 
-To start the production server:
+### Multi-Tenant Usage
+The platform automatically handles tenant isolation - simply configure your tenant settings in the admin panel, and the system will create isolated database environments for each client.
 
-```bash
-npm run start
+---
+
+## 🛠️ Technologies Used
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **React** | ^18.3.1 | Frontend framework with concurrent features |
+| **TypeScript** | ^5.6.3 | Type-safe development and enhanced DX |
+| **Express.js** | ^4.21.2 | Backend API server with middleware architecture |
+| **MongoDB** | ^6.16.0 | Primary database with aggregation pipelines |
+| **Mongoose** | ^8.14.2 | ODM with schema validation and middleware |
+| **Vite** | ^5.4.14 | Build tool with HMR and optimized bundling |
+| **Tailwind CSS** | ^3.4.17 | Utility-first CSS framework |
+| **Radix UI** | ^1.2.x | Headless UI components for accessibility |
+| **Recharts** | ^2.15.3 | Data visualization and charting library |
+| **Socket.io** | ^4.8.1 | Real-time bidirectional communication |
+| **Stripe** | ^18.1.0 | Payment processing and subscription management |
+| **Google Analytics** | ^5.1.0 | Traffic analytics and user behavior tracking |
+| **JWT** | ^9.0.2 | Stateless authentication and authorization |
+| **Zod** | ^3.24.2 | Runtime schema validation |
+| **Framer Motion** | ^11.18.2 | Animation library for smooth UX |
+
+---
+
+## 📁 Project Structure
+
 ```
-
-## Database Setup
-
-### MongoDB Setup
-
-The application uses MongoDB for data storage. We support two deployment modes:
-
-1. **Single Database Mode**: All clients share the same database with tenant isolation
-2. **Multiple Database Mode**: Each client gets their own dedicated database
-
-#### Setting up MongoDB
-
-1. **Create a MongoDB Atlas account** (recommended):
-   - Sign up at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-   - Create a new cluster (free tier is sufficient for development)
-   - Set up network access to allow connections from your IP address
-   - Create a database user with read/write privileges
-
-2. **Configure your environment variables**:
-   - Update the MongoDB configuration in your `.env` file
-   - The application will automatically create databases and collections as needed
-
-3. **Multi-Client Setup**:
-   - For multiple clients, the system will create separate databases named `client_[clientId]`
-   - Each client's data is completely isolated in its own database
-   - No additional configuration is needed - the system handles this automatically
-
-For more information on the database architecture, see `database.md`.
-
-## Demo Login
-
-You can use the following credentials to log in to the demo:
-
-- **Email**: admin@businessdash.com
-- **Password**: password123
-
-## Project Structure
-
-```text
 BusinessIntelligenceDashboard/
-├── client/                 # Frontend React application
-│   ├── public/             # Static assets
-│   ├── src/                # React source code
-│   │   ├── components/     # UI components
-│   │   ├── context/        # React context providers
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── lib/            # Utility functions
-│   │   ├── pages/          # Page components
-│   │   └── App.tsx         # Main application component
-├── server/                 # Backend Express application
-│   ├── routes/             # API routes
-│   ├── models.ts           # MongoDB schema models
-│   ├── db.ts               # Database connection handling
-│   ├── mongoStorage.ts     # MongoDB storage implementation
-│   ├── storage.ts          # In-memory storage fallback
-│   ├── storageFactory.ts   # Factory for storage implementation
-│   └── index.ts            # Server entry point
-├── shared/                 # Shared code between client and server
-├── package.json            # Project dependencies
-├── database.md             # Database documentation
-└── README.md               # Project documentation
+├── client/                          # Frontend React application
+│   ├── src/
+│   │   ├── components/              # Reusable UI components
+│   │   │   ├── dashboard/           # Dashboard-specific components
+│   │   │   ├── customers/           # Customer management UI
+│   │   │   ├── products/            # Product catalog interface
+│   │   │   ├── orders/              # Order management system
+│   │   │   └── ui/                  # Base UI components (Radix + Tailwind)
+│   │   ├── context/                 # React Context providers
+│   │   ├── hooks/                   # Custom React hooks
+│   │   ├── lib/                     # Utility functions and API client
+│   │   └── pages/                   # Route-level page components
+│   └── public/                      # Static assets and PWA manifest
+├── server/                          # Backend Express application
+│   ├── routes/                      # API endpoint definitions
+│   │   ├── auth/                    # Authentication routes
+│   │   ├── dashboard/               # Dashboard data endpoints
+│   │   ├── customers/               # Customer CRUD operations
+│   │   └── products/                # Product management API
+│   ├── models/                      # MongoDB schema definitions
+│   ├── middleware/                  # Express middleware functions
+│   ├── services/                    # Business logic layer
+│   └── types/                       # TypeScript type definitions
+├── shared/                          # Shared code between client/server
+│   └── types/                       # Common TypeScript interfaces
+├── scripts/                         # Database and utility scripts
+│   ├── db/                          # Database seeding and migration
+│   └── test/                        # Integration test scripts
+└── docs/                           # Additional documentation
 ```
 
-## API Endpoints
+### Key Architectural Decisions
 
-The application provides the following API endpoints:
+- **Monorepo Structure**: Unified codebase for easier dependency management and shared types
+- **API-First Design**: RESTful endpoints with comprehensive OpenAPI documentation
+- **Service Layer Pattern**: Business logic abstraction for testability and maintainability
+- **Database-per-Tenant**: Scalable multi-tenancy with complete data isolation
 
-### Authentication
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user information
-- `POST /api/auth/logout` - User logout
+---
 
-### Dashboard
-- `GET /api/dashboard` - Get dashboard overview data
+## 🤝 Contributing
 
-### Customers
-- `GET /api/customers` - List all customers
-- `GET /api/customers/:id` - Get customer details
-- `GET /api/customers/:id/orders` - Get orders for a specific customer
+We welcome contributions from the community! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
 
-### Products
-- `GET /api/products` - List all products
-- `GET /api/products/:id` - Get product details (NEW: fetches live data for product dialogs)
-- `POST /api/products` - Create a new product
-- `PATCH /api/products/:id` - Update a product (live editing)
-- `GET /api/products/stock-levels` - Get available stock levels
+### How to Contribute
 
-### Orders
-- `GET /api/orders` - List all orders
-- `GET /api/orders/:id` - Get order details
-- `POST /api/orders` - Create a new order
-- `PATCH /api/orders/:id/status` - Update order status
+1. **Fork the repository**
+2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
+3. **Commit your changes** (`git commit -m 'Add amazing feature'`)
+4. **Push to the branch** (`git push origin feature/amazing-feature`)
+5. **Open a Pull Request**
 
-### Tenant
-- `GET /api/tenant` - Get tenant information
-- `PATCH /api/tenant` - Update tenant information
-- `POST /api/tenant/apikeys` - Update tenant API keys
+### Development Guidelines
 
-## Current Development Status
+- Follow the existing code style and TypeScript conventions
+- Write comprehensive tests for new features
+- Update documentation as needed
+- Ensure all tests pass before submitting PR
 
-The application is currently in development with the following components implemented:
+For detailed contributing guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-- ✅ User authentication (login/logout)
-- ✅ Main dashboard overview
-- ✅ Sales dashboard
-- ✅ MongoDB multi-tenant support
-- ✅ Client-specific database isolation
-- ✅ Customer management with real MongoDB data
-- ✅ Product management with live MongoDB data, full editing, and robust product details dialog (no mock data)
-- ❌ Traffic analysis (in progress)
+---
 
-All data is now pulled directly from MongoDB - no mock data is used in the codebase. Product details and editing dialogs are fully live and robust.
+## 📄 License
 
-## Contributing
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+```
+MIT License - Permission is hereby granted, free of charge, to any person obtaining a copy...
+```
 
-## License
+---
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 🌐 Connect & Contact
+
+<div align="center">
+
+### 💼 Professional Links
+
+[![GitHub](https://img.shields.io/badge/GitHub-Tommybroomhall-181717?style=for-the-badge&logo=github)](https://github.com/Tommybroomhall)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Tom_Broomhall-0077B5?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/tom-b-80ab43165/)
+[![Email](https://img.shields.io/badge/Email-hello@tbroomhall.com-D14836?style=for-the-badge&logo=gmail)](mailto:hello@tbroomhall.com)
+
+### 🚀 Interested in my work? Let's connect!
+
+*I'm passionate about building scalable, user-centric e-commerce solutions that solve real business problems. Currently accepting new clients for custom e-commerce platform development. Looking to replace Shopify with something more powerful? Let's discuss your project!*
+
+</div>
+
+---
+
+<div align="center">
+
+**⭐ If this project helped you, please consider giving it a star! ⭐**
+
+*Made with ❤️ and lots of ☕*
+
+</div>
