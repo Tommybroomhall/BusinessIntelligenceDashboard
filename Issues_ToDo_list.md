@@ -6,12 +6,6 @@
 
 ## 📊 OVERVIEW PAGE ISSUES
 
-### Issue 3: Average Order Value Period Verification
-**File:** `client/src/components/dashboard/sales-overview.tsx` (lines 270-279) & `server/routes/dashboard/sales.ts` (lines 34-36)
-**Problem:** Need to verify that Average Order Value calculation respects the selected time frame (7d/30d).
-**Expected:** AOV should calculate based on the selected period (7 days or 30 days) from the time frame selector.
-**Code Reference:** Check if `calculateAverageOrderValue()` in storage layer uses the date range parameters correctly.
-
 ### Issue 4: Sales Analytics Graph Data Accuracy
 **File:** `client/src/components/dashboard/sales-chart.tsx` & `client/src/pages/dashboard.tsx` (lines 318-324)
 **Problem:** Sales analytics graph not showing correct data and not tied to 7d/30d periods.

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useCurrencyFormatter } from "@/context/CurrencyContext";
+import { useTimeFrame } from "@/context/TimeFrameContext";
 import {
   ShoppingCart,
   BarChart2,
@@ -108,44 +109,8 @@ function SalesKPI({ title, value, icon, trend, isLoading, subMetrics }: SalesKPI
 }
 
 export function SalesOverview() {
-  const [selectedTimeFrame, setSelectedTimeFrame] = useState<TimeFrame>("7d");
+  const { selectedTimeFrame, setSelectedTimeFrame, currentRange, previousRange } = useTimeFrame();
   const { formatCurrency, getCurrencyIcon } = useCurrencyFormatter();
-
-  // Calculate stable date ranges only when timeframe changes
-  const { currentRange, previousRange } = useMemo(() => {
-    // Get current date as YYYY-MM-DD string to ensure stability
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today in local time
-
-    const days = selectedTimeFrame === "7d" ? 7 : 30;
-
-    // Current period
-    const currentStartDate = new Date(today);
-    currentStartDate.setDate(today.getDate() - days + 1);
-
-    const currentEndDate = new Date(today);
-    currentEndDate.setHours(23, 59, 59, 999);
-
-    // Previous period
-    const previousEndDate = new Date(currentStartDate);
-    previousEndDate.setDate(currentStartDate.getDate() - 1);
-    previousEndDate.setHours(23, 59, 59, 999);
-
-    const previousStartDate = new Date(previousEndDate);
-    previousStartDate.setDate(previousEndDate.getDate() - days + 1);
-    previousStartDate.setHours(0, 0, 0, 0);
-
-    return {
-      currentRange: {
-        from: currentStartDate.toISOString(),
-        to: currentEndDate.toISOString(),
-      },
-      previousRange: {
-        from: previousStartDate.toISOString(),
-        to: previousEndDate.toISOString(),
-      }
-    };
-  }, [selectedTimeFrame]);
 
   // Create a custom fetch function for sales data
   const fetchSalesData = async (url: string) => {

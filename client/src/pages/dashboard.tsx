@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SalesOverview } from "@/components/dashboard/sales-overview";
 import { SalesChart } from "@/components/dashboard/sales-chart";
+import { TimeFrameProvider } from "@/context/TimeFrameContext";
 import { TrafficChannelsChart } from "@/components/dashboard/traffic-channels-chart";
 import TrafficSources from "@/components/dashboard/traffic-sources";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
@@ -45,17 +46,7 @@ export default function Dashboard() {
     pauseOnUserIdle: true,
   });
 
-  // Fetch orders data for sales chart with caching and auto-refresh
-  const { data: ordersData, isLoading: isOrdersLoading } = useDashboardComponent(
-    '/api/orders',
-    async () => {
-      const response = await apiRequest('GET', '/api/orders');
-      return response.json();
-    },
-    {
-      autoRefreshInterval: isAutoRefreshEnabled && !isUserIdle ? 5 * 60 * 1000 : false, // 5 minutes
-    }
-  );
+
 
   // Fetch popular products with sales data with caching and auto-refresh
   const { data: popularProductsData, isLoading: isProductsLoading } = useDashboardComponent(
@@ -69,56 +60,7 @@ export default function Dashboard() {
     }
   );
 
-  // Process orders data for sales chart
-  const salesChartData = React.useMemo(() => {
-    if (!ordersData || ordersData.length === 0) {
-      // Return null if no orders to fail loudly
-      return null;
-    }
 
-    // Group orders by month
-    const monthlyData = Array.from({ length: 12 }, (_, i) => {
-      const month = i + 1;
-      const monthOrders = ordersData.filter(order => {
-        const orderDate = new Date(order.createdAt);
-        return orderDate.getMonth() + 1 === month && orderDate.getFullYear() === 2023;
-      });
-
-      const value = monthOrders.reduce((sum, order) => sum + Number(order.amount), 0);
-
-      return {
-        date: `2023-${String(month).padStart(2, '0')}-01`,
-        value
-      };
-    });
-
-    // Group orders by week (last 4 weeks)
-    const now = new Date();
-    const weeklyData = Array.from({ length: 4 }, (_, i) => {
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - (i + 1) * 7);
-
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 7);
-
-      const weekOrders = ordersData.filter(order => {
-        const orderDate = new Date(order.createdAt);
-        return orderDate >= weekStart && orderDate < weekEnd;
-      });
-
-      const value = weekOrders.reduce((sum, order) => sum + Number(order.amount), 0);
-
-      return {
-        date: `Week ${4 - i}`,
-        value
-      };
-    }).reverse();
-
-    return {
-      monthly: monthlyData,
-      weekly: weeklyData
-    };
-  }, [ordersData]);
 
   // Process traffic data from API
   const trafficChannelsData = React.useMemo(() => {
@@ -198,7 +140,7 @@ export default function Dashboard() {
   }
 
   return (
-    <>
+    <TimeFrameProvider>
       {/* Background refresh indicator */}
       {isRefreshingInBackground && <DashboardRefreshingSkeleton />}
 
@@ -315,14 +257,7 @@ export default function Dashboard() {
 
       {/* Charts Row 1 - Sales and Traffic */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        {salesChartData ? (
-          <SalesChart data={salesChartData} />
-        ) : (
-          <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 flex items-center justify-center h-64">
-            <p className="font-medium">No sales data available from MongoDB</p>
-          </div>
-        )}
-
+        <SalesChart />
         <TrafficSources />
       </div>
 
@@ -365,6 +300,6 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
-    </>
+    </TimeFrameProvider>
   );
 }
