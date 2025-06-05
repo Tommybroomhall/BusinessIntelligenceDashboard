@@ -6,18 +6,6 @@
 
 ## 📊 OVERVIEW PAGE ISSUES
 
-### Issue 1: Currency Icon Display Bug
-**File:** `client/src/components/dashboard/sales-overview.tsx` (lines 248-257)
-**Problem:** The "Total Revenue" section shows a hardcoded dollar icon (`<DollarSign className="h-5 w-5" />`) instead of respecting the tenant's currency settings.
-**Expected:** Should display the appropriate currency symbol based on `useCurrencyFormatter()` context.
-**Code Reference:** The `SalesKPI` component uses `<DollarSign />` icon regardless of currency settings from `client/src/context/CurrencyContext.tsx`.
-
-### Issue 2: Total Orders Section Enhancement
-**File:** `client/src/components/dashboard/sales-overview.tsx` (lines 259-268, 281-286)
-**Problem:** Total Orders section only shows order count. Should also display "Orders to Fulfill" in the same section.
-**Expected:** Combine both metrics or show them as sub-metrics within the Total Orders card.
-**Code Reference:** Currently separate `SalesKPI` components for "Total Orders" and "Orders to Dispatch".
-
 ### Issue 3: Average Order Value Period Verification
 **File:** `client/src/components/dashboard/sales-overview.tsx` (lines 270-279) & `server/routes/dashboard/sales.ts` (lines 34-36)
 **Problem:** Need to verify that Average Order Value calculation respects the selected time frame (7d/30d).

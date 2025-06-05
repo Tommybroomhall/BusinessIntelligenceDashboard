@@ -24,6 +24,12 @@ interface SalesKPIProps {
     period: string;
   };
   isLoading?: boolean;
+  subMetrics?: Array<{
+    label: string;
+    value: string | number;
+    icon?: React.ReactNode;
+    isLoading?: boolean;
+  }>;
 }
 
 interface SalesData {
@@ -42,7 +48,7 @@ interface SalesData {
   };
 }
 
-function SalesKPI({ title, value, icon, trend, isLoading }: SalesKPIProps) {
+function SalesKPI({ title, value, icon, trend, isLoading, subMetrics }: SalesKPIProps) {
   const getTrendColor = () => {
     if (trend?.direction === "up") return "text-green-600";
     if (trend?.direction === "down") return "text-red-600";
@@ -74,6 +80,25 @@ function SalesKPI({ title, value, icon, trend, isLoading }: SalesKPIProps) {
               <span className="ml-1">
                 {trend.value > 0 ? "+" : ""}{trend.value.toFixed(1)}% from {trend.period}
               </span>
+            </div>
+          )}
+          {subMetrics && subMetrics.length > 0 && (
+            <div className="pt-3 border-t border-gray-100 mt-3">
+              <div className="space-y-2">
+                {subMetrics.map((subMetric, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {subMetric.icon && (
+                        <div className="text-gray-400 text-xs">{subMetric.icon}</div>
+                      )}
+                      <span className="text-xs text-gray-600">{subMetric.label}</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">
+                      {subMetric.isLoading ? "..." : subMetric.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -243,7 +268,7 @@ export function SalesOverview() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <SalesKPI
           title="Total Revenue"
           value={isLoading ? formatCurrency(0) : formatCurrency(currentData?.revenue || 0)}
@@ -264,6 +289,14 @@ export function SalesOverview() {
             period: previousPeriodLabel,
           }}
           isLoading={isLoading}
+          subMetrics={[
+            {
+              label: "Orders to Fulfill",
+              value: isOrdersDispatchLoading ? '...' : (ordersNeedingDispatch?.length || 0).toLocaleString(),
+              icon: <Truck className="h-3 w-3" />,
+              isLoading: isOrdersDispatchLoading,
+            }
+          ]}
         />
 
         <SalesKPI
@@ -275,13 +308,6 @@ export function SalesOverview() {
             period: previousPeriodLabel,
           }}
           isLoading={isLoading}
-        />
-
-        <SalesKPI
-          title="Orders to Dispatch"
-          value={isOrdersDispatchLoading ? '0' : (ordersNeedingDispatch?.length || 0).toLocaleString()}
-          icon={<Truck className="h-5 w-5" />}
-          isLoading={isOrdersDispatchLoading}
         />
       </div>
     </div>
