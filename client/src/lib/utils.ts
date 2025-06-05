@@ -72,3 +72,30 @@ export function formatDate(dateString: string): string {
     day: 'numeric',
   });
 }
+
+/**
+ * Get the appropriate currency icon component name based on currency code
+ * @param currencyCode - The ISO 4217 currency code (e.g., 'USD', 'GBP', 'EUR')
+ * @returns The corresponding Lucide icon component name
+ */
+export function getCurrencyIconName(currencyCode: string): string {
+  const currencyIcons: Record<string, string> = {
+    USD: 'DollarSign',
+    GBP: 'PoundSterling',
+    EUR: 'Euro',
+    JPY: 'JapaneseYen',
+    CAD: 'DollarSign',
+    AUD: 'DollarSign',
+    CHF: 'SwissFranc',
+    CNY: 'JapaneseYen',
+    INR: 'IndianRupee',
+    KRW: 'JapaneseYen',
+    BRL: 'DollarSign',
+    MXN: 'DollarSign',
+    RUB: 'RussianRuble',
+    ZAR: 'DollarSign',
+    // Add more currencies as needed
+  };
+
+  return currencyIcons[currencyCode.toUpperCase()] || 'DollarSign';
+}

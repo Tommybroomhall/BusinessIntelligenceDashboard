@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { CurrencySettings, DEFAULT_CURRENCY } from '../lib/utils';
+import { CurrencySettings, DEFAULT_CURRENCY, getCurrencyIconName } from '../lib/utils';
 import { useQuery } from '@tanstack/react-query';
+import {
+  DollarSign,
+  PoundSterling,
+  Euro,
+  JapaneseYen,
+  SwissFranc,
+  IndianRupee,
+  RussianRuble,
+} from 'lucide-react';
 
 interface CurrencyContextType {
   currencySettings: CurrencySettings;
@@ -94,5 +103,27 @@ export function useCurrencyFormatter() {
     })}`;
   };
 
-  return { formatCurrency, formatCurrencySymbol, currencySettings };
+  /**
+   * Get the appropriate currency icon component based on current currency settings
+   * @param className - CSS classes to apply to the icon
+   * @returns React component for the currency icon
+   */
+  const getCurrencyIcon = (className: string = "h-5 w-5"): React.ReactNode => {
+    const iconName = getCurrencyIconName(currencySettings.code);
+    
+    const iconComponents: Record<string, React.ComponentType<{ className?: string }>> = {
+      DollarSign,
+      PoundSterling,
+      Euro,
+      JapaneseYen,
+      SwissFranc,
+      IndianRupee,
+      RussianRuble,
+    };
+
+    const IconComponent = iconComponents[iconName] || DollarSign;
+    return <IconComponent className={className} />;
+  };
+
+  return { formatCurrency, formatCurrencySymbol, currencySettings, getCurrencyIcon };
 } 

@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useCurrencyFormatter } from "@/context/CurrencyContext";
 import {
-  DollarSign,
   ShoppingCart,
   BarChart2,
   TrendingUp,
@@ -85,7 +84,7 @@ function SalesKPI({ title, value, icon, trend, isLoading }: SalesKPIProps) {
 
 export function SalesOverview() {
   const [selectedTimeFrame, setSelectedTimeFrame] = useState<TimeFrame>("7d");
-  const { formatCurrency } = useCurrencyFormatter();
+  const { formatCurrency, getCurrencyIcon } = useCurrencyFormatter();
 
   // Calculate stable date ranges only when timeframe changes
   const { currentRange, previousRange } = useMemo(() => {
@@ -248,7 +247,7 @@ export function SalesOverview() {
         <SalesKPI
           title="Total Revenue"
           value={isLoading ? formatCurrency(0) : formatCurrency(currentData?.revenue || 0)}
-          icon={<DollarSign className="h-5 w-5" />}
+          icon={getCurrencyIcon("h-5 w-5")}
           trend={{
             ...revenueTrend,
             period: previousPeriodLabel,
@@ -270,7 +269,7 @@ export function SalesOverview() {
         <SalesKPI
           title="Avg Order Value"
           value={isLoading ? formatCurrency(0) : formatCurrency(currentData?.averageOrderValue || 0)}
-          icon={<BarChart2 className="h-5 w-5" />}
+          icon={getCurrencyIcon("h-5 w-5")}
           trend={{
             ...avgOrderValueTrend,
             period: previousPeriodLabel,
