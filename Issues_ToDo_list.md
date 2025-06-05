@@ -6,12 +6,6 @@
 
 ## 📊 OVERVIEW PAGE ISSUES
 
-### Issue 4: Sales Analytics Graph Data Accuracy
-**File:** `client/src/components/dashboard/sales-chart.tsx` & `client/src/pages/dashboard.tsx` (lines 318-324)
-**Problem:** Sales analytics graph not showing correct data and not tied to 7d/30d periods.
-**Expected:** Graph should reflect the same time period as selected in the Sales Overview component.
-**Code Reference:** `SalesChart` component needs to receive and respect time frame selection.
-
 ### Issue 5: Traffic Sources Data Investigation
 **File:** `client/src/components/dashboard/traffic-sources.tsx` (lines 20-28, 157-167)
 **Problem:** Traffic sources showing data but source is unclear, and not tied to 7d/30d periods.
